@@ -2,7 +2,16 @@
 
 !README.md
 !Makefile
-!Makefile.target
 !.gitignore
 
-!project.c
+!root/
+root/*
+!root/root.c
+!root/Makefile
+!root/Makefile.target
+
+!node/
+node/*
+!node/node.c
+!node/Makefile
+!node/Makefile.target
