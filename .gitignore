@@ -15,3 +15,7 @@ node/*
 !node/node.c
 !node/Makefile
 !node/Makefile.target
+
+!simu/
+simu/*
+!simu/cooja_project.csc
