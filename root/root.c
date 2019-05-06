@@ -1,8 +1,8 @@
 /**
  * \file
- *         Testing the broadcast layer in Rime
+ *		 Testing the broadcast layer in Rime
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *		 Adam Dunkels <adam@sics.se>
  */
 
 #include "contiki.h"
@@ -14,56 +14,91 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+//messages
+#define WELCOME 1
+
+//timeout
+#define RESEND_WELCOME 2
+
 /*---------------------------------------------------------------------------*/
-PROCESS(example_broadcast_process, "Broadcast example");
+PROCESS(example_broadcast_process, "Routing tree discovery");
 AUTOSTART_PROCESSES(&example_broadcast_process);
 
-char *hello = "Hello";
-char *groot = "I'm (g)root";
-char *welcome = "Welcome";
-/*---------------------------------------------------------------------------*/
-static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from)
-{
-    char *message = (char *)packetbuf_dataptr();
-    printf("broadcast message received from %d.%d: '%s'\n",
-         from->u8[0], from->u8[1], (char *)packetbuf_dataptr());
-    
-    if (strncmp(groot, message, 12) == 0)
-    {
-        printf("Root detected\n");
-    }
-    else if (strncmp(hello, message, 6) == 0) 
-    {
-        printf("New node detected\n");
-    }
+/*----- Message managment ---------------------------------------------------*/
+struct discovery_struct {
+	uint8_t msg;
+	uint8_t weight;
+};
+typedef struct discovery_struct discovery_struct_t;
+
+union discovery_union {
+	char* c;
+	discovery_struct_t* st;
+};
+typedef union discovery_union discovery_t;
+
+discovery_t* create_message(uint8_t msg, uint8_t weight) {
+	discovery_struct_t* st = (discovery_struct_t*) malloc(sizeof(discovery_struct_t));
+	if (st == NULL) return NULL;
+	st->msg = msg;
+	st->weight = weight;
+	
+	discovery_t* message = (discovery_t*) malloc(sizeof(discovery_t));
+	if (message == NULL) return NULL;
+	message->st = st;
+	
+	return message;
 }
-static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
-static struct broadcast_conn broadcast;
+
+void send_message(struct broadcast_conn* broadcast, discovery_t* message) {
+	packetbuf_copyfrom(message->c, sizeof(discovery_struct_t));
+	broadcast_send(broadcast);
+}
+
+void free_message(discovery_t* message) {
+	if (message->st != NULL) free(message->st);
+	free(message);
+}
 /*---------------------------------------------------------------------------*/
+
+// global variables
+static struct broadcast_conn broadcast;
+
+
+/*---------------------------------------------------------------------------*/
+
+static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {}
+static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
+
+/*---------------------------------------------------------------------------*/
+
 PROCESS_THREAD(example_broadcast_process, ev, data)
 {
-    static struct etimer et;
+	
+	PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
 
+	PROCESS_BEGIN();
 
-    PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
+	broadcast_open(&broadcast, 129, &broadcast_call);
+	
+	static struct etimer welcomet;
 
-    PROCESS_BEGIN();
-
-    broadcast_open(&broadcast, 129, &broadcast_call);
-
-    while(1) {
-
+	while(1) {
+	
         /* Delay 2-4 seconds */
-        etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
+        etimer_set(&welcomet, CLOCK_SECOND * RESEND_WELCOME + random_rand() % (CLOCK_SECOND * RESEND_WELCOME));
 
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&welcomet));
+        
+	    discovery_t* welcome = create_message(WELCOME, 0);
+	    send_message(&broadcast, welcome);
+	    free_message(welcome);
+	
+	}
 
-        /* Send I'm (g)root */
-        packetbuf_copyfrom(groot, 12);
-        broadcast_send(&broadcast);
-    }
-
-    PROCESS_END();
+	PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
