@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 //states
 #define UNCONNECTED 0
@@ -24,6 +23,7 @@
 //messages
 #define HELLO 0
 #define WELCOME 1
+#define CHOOSE 2
 
 //timeout
 #define RESEND_HELLO 3
@@ -125,20 +125,47 @@ uint8_t weight = 255;
 uint8_t state = UNCONNECTED;
 rimeaddr_t parent;
 static struct broadcast_conn broadcast;
+static struct unicast_conn uc;
 static struct etimer connectedt;
 queue_t packet_queue;
 
+/*---------------------------------------------------------------------------*/
+static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from) {
+	discovery_t message;
+	message.c = (char*) packetbuf_dataptr();
+	uint8_t w = message.st->weight;
+	unsigned char u0 = from->u8[0];
+	unsigned char u1 = from->u8[1];
+	
+	switch(message.st->msg) {
+		case CHOOSE:
+			printf("CHOOSE message received from %d.%d: '%d'\n", u0, u1, w);
+
+			break;
+		default:
+			printf("UNKOWN message received from %d.%d: '%d'\n", u0, u1, 
+				message.st->msg);
+			
+			break;
+	}
+}
+static const struct unicast_callbacks unicast_callbacks = {recv_uc};
 
 /*---------------------------------------------------------------------------*/
 void choose_parent(unsigned char u0, unsigned char u1) {
 	parent.u8[0] = u0;
 	parent.u8[1] = u1;
 	printf("New parent chosen : %d.%d\n", u0, u1);
-	// TODO send CHOOSE to parent
+	
+	discovery_t* choose = create_message(CHOOSE, weight);
+	packetbuf_copyfrom(choose->c, sizeof(discovery_struct_t));
+	if(!rimeaddr_cmp(&parent, &rimeaddr_node_addr)) {
+		unicast_send(&uc, &parent);
+	}
+	free_message(choose);
 }
 
-static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from)
-{
+static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 	discovery_t message;
 	message.c = (char*) packetbuf_dataptr();
 	uint8_t w = message.st->weight;
@@ -195,6 +222,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 	PROCESS_BEGIN();
 
 	broadcast_open(&broadcast, 129, &broadcast_call);
+	unicast_open(&uc, 146, &unicast_callbacks);
 	
 	static struct etimer hellot;
 	etimer_set(&hellot, 0);
