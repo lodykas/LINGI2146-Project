@@ -46,6 +46,7 @@ struct queue_elem {
 struct queue{
 	struct queue_elem* head;
 	struct queue_elem* tail;
+	int size;
 };
 typedef struct queue queue_t;
 
@@ -65,6 +66,7 @@ void queue_add(queue_t* queue, discovery_t* data){
 	if(queue->head == 0){
 		queue->head = elem;
 	}
+	queue->size++;
 }
 discovery_t* queue_pop(queue_t* queue){
 
@@ -81,6 +83,7 @@ discovery_t* queue_pop(queue_t* queue){
 		queue->head = 0;
 	}
 	free(old_head);
+	queue->size--;
 	return data;
 }
 
@@ -99,12 +102,14 @@ static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from)
 	message.c = (char*) packetbuf_dataptr();
 	printf("MSG: %x\n",message.st->msg);
 		 
-	discovery_t response;
+	discovery_t* response;
 	switch(message.st->msg){
 		case HELLO:
+			response = (discovery_t*) malloc(sizeof(discovery_t));
 			printf("HELLO message received from %d.%d: '%d'\n",from->u8[0], from->u8[1], message.st->msg);
-			response.st->msg = WELCOME;
-			response.st->weigth = weight;
+			response->st->msg = WELCOME;
+			response->st->weigth = weight;
+			queue_add(&packet_queue,response);
 			break;
 		case WELCOME:
 			printf("WELCOME message received from %d.%d: '%d'\n",from->u8[0], from->u8[1], message.st->msg);
@@ -113,7 +118,6 @@ static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from)
 			break;
 		
 	}
-	queue_add(&packet_queue,&response);
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 /*---------------------------------------------------------------------------*/
@@ -127,28 +131,38 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 
 	broadcast_open(&broadcast, 129, &broadcast_call);
 	
-	/* Send hello */
-	discovery_t msg;
-	msg.st->msg = HELLO;
-	msg.st->weigth = 0;
+
+	
+	packet_queue.size = 0;
+	packet_queue.head = 0;
+	packet_queue.tail = 0;
 	
 
 	while(1) {
 	
+		/* Send hello */
+		discovery_t msg;
+		msg.st->msg = HELLO;
+		msg.st->weigth = 0;
 		printf("SENT: %x\n",msg.st->msg);
 		packetbuf_copyfrom(msg.c, sizeof(discovery_struct_t));
+		printf("1\n");
 		broadcast_send(&broadcast);
+		printf("2\n");
 
 		/* Delay 2-4 seconds */
 		etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
+		printf("3\n");
 
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		printf("4\n");
 		
-		while(packet_queue.head != 0){
+		while(packet_queue.size > 0){
 			discovery_t* to_send;
 			to_send = queue_pop(&packet_queue);
 			packetbuf_copyfrom(to_send->c, sizeof(discovery_struct_t));
 			broadcast_send(&broadcast);
+			printf("SENT from queue: %x\n",to_send->st->msg);
 			free(to_send);
 		}
 	
