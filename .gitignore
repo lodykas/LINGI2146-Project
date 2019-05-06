@@ -7,12 +7,20 @@
 !root/
 root/*
 !root/root.c
+!root/routing-table.h
+!root/routing-table.c
+!root/broadcast-managment.h
+!root/broadcast-managment.c
 !root/Makefile
 !root/Makefile.target
 
 !node/
 node/*
 !node/node.c
+!node/routing-table.h
+!node/routing-table.c
+!node/broadcast-managment.h
+!node/broadcast-managment.c
 !node/Makefile
 !node/Makefile.target
 

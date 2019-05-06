@@ -1,20 +1,12 @@
-/**
- * \file
- *		 Testing the broadcast layer in Rime
- * \author
- *		 Adam Dunkels <adam@sics.se>
- */
-
 #include "contiki.h"
 #include "net/rime.h"
 #include "random.h"
 
-#include "dev/button-sensor.h"
-
-#include "dev/leds.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "routing-table.h"
+#include "broadcast-managment.h"
 
 //messages
 #define WELCOME 1
@@ -26,47 +18,12 @@
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Routing tree discovery");
 AUTOSTART_PROCESSES(&example_broadcast_process);
-
-/*----- Message managment ---------------------------------------------------*/
-struct discovery_struct {
-	uint8_t msg;
-	uint8_t weight;
-};
-typedef struct discovery_struct discovery_struct_t;
-
-union discovery_union {
-	char* c;
-	discovery_struct_t* st;
-};
-typedef union discovery_union discovery_t;
-
-discovery_t* create_message(uint8_t msg, uint8_t weight) {
-	discovery_struct_t* st = (discovery_struct_t*) malloc(sizeof(discovery_struct_t));
-	if (st == NULL) return NULL;
-	st->msg = msg;
-	st->weight = weight;
-	
-	discovery_t* message = (discovery_t*) malloc(sizeof(discovery_t));
-	if (message == NULL) return NULL;
-	message->st = st;
-	
-	return message;
-}
-
-void send_message(struct broadcast_conn* broadcast, discovery_t* message) {
-	packetbuf_copyfrom(message->c, sizeof(discovery_struct_t));
-	broadcast_send(broadcast);
-}
-
-void free_message(discovery_t* message) {
-	if (message->st != NULL) free(message->st);
-	free(message);
-}
 /*---------------------------------------------------------------------------*/
 
 // global variables
 static struct broadcast_conn broadcast;
 static struct unicast_conn uc;
+table_t table;
 /*---------------------------------------------------------------------------*/
 static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from) {
 	discovery_t message;
