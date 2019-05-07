@@ -9,6 +9,8 @@ root/*
 !root/root.c
 !root/routing-table.h
 !root/routing-table.c
+!root/routing-message.h
+!root/routing-message.c
 !root/broadcast-managment.h
 !root/broadcast-managment.c
 !root/Makefile
@@ -19,6 +21,8 @@ node/*
 !node/node.c
 !node/routing-table.h
 !node/routing-table.c
+!node/routing-message.h
+!node/routing-message.c
 !node/broadcast-managment.h
 !node/broadcast-managment.c
 !node/Makefile

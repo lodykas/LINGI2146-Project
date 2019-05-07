@@ -6,6 +6,7 @@ route_t* create_route(rimeaddr_t addr, rimeaddr_t nexthop) {
 	if (new_route == NULL) return NULL;
 	new_route->addr = addr;
 	new_route->nexthop = nexthop;
+	new_route->next = NULL;
 	return new_route;
 }
 
@@ -14,7 +15,7 @@ int addr_cmp(rimeaddr_t a1, rimeaddr_t a2) {
 		((uint8_t)(a1.u8[1]) - (uint8_t)(a2.u8[1]));
 }
 
-void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop) {	
+void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop) {
 	route_t* previous = NULL;
 	route_t* next = table->first;
 	while (next != NULL) {
@@ -104,3 +105,12 @@ void reset_routes(table_t* table) {
 	}
 }
 
+void flush_table(table_t* table) {
+    route_t* next = table->first;
+    while (next != NULL) {
+        route_t* nextnext = next->next;
+        free(next);
+        next = nextnext;
+    }
+    table->size = 0;
+}

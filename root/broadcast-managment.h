@@ -18,8 +18,8 @@ union discovery_union {
 };
 typedef union discovery_union discovery_t;
 
-discovery_t* create_message(uint8_t msg, uint8_t weight);
+discovery_t* create_broadcast_message(uint8_t msg, uint8_t weight);
 
-void send_message(struct broadcast_conn* broadcast, discovery_t* message);
+void send_broadcast_message(struct broadcast_conn* broadcast, discovery_t* message);
 
-void free_message(discovery_t* message);
+void free_broadcast_message(discovery_t* message);

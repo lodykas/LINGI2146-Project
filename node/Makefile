@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = node
-PROJECT_SOURCEFILES = broadcast-managment.c routing-table.c
+PROJECT_SOURCEFILES = broadcast-managment.c routing-table.c routing-message.c
 all: $(CONTIKI_PROJECT) 
 
 #UIP_CONF_IPV6=1

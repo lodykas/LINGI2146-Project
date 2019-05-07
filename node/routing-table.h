@@ -33,3 +33,5 @@ route_t* search_route(table_t* table, rimeaddr_t addr);
 route_t* next_route(table_t* table);
 
 void reset_routes(table_t* table);
+
+void flush_table(table_t* table);
