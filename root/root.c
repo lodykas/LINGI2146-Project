@@ -13,7 +13,7 @@
 #define CHOOSE 2
 
 //timeout
-#define RESEND_WELCOME 2
+#define RESEND_WELCOME 3
 
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Routing tree discovery");
@@ -64,13 +64,14 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 	unicast_open(&uc, 146, &unicast_callbacks);
 	
 	static struct etimer welcomet;
+	
+    etimer_set(&welcomet, CLOCK_SECOND * RESEND_WELCOME);
 
 	while(1) {
-	
-        /* Delay 2-4 seconds */
-        etimer_set(&welcomet, CLOCK_SECOND * RESEND_WELCOME + random_rand() % (CLOCK_SECOND * RESEND_WELCOME));
 
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&welcomet));
+        
+        etimer_reset(&welcomet);
         
 	    discovery_t* welcome = create_message(WELCOME, 0);
 	    send_message(&broadcast, welcome);
