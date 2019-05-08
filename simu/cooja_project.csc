@@ -64,8 +64,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>59.12557323058911</x>
-        <y>49.06218636221763</y>
+        <x>41.492501282416555</x>
+        <y>37.05029003366369</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -78,8 +78,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>29.404243390886652</x>
-        <y>83.9206496743873</y>
+        <x>60.29566459676848</x>
+        <y>75.01139332867606</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -92,36 +92,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>8.006934651488647</x>
-        <y>102.10144343344489</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.mspmote.interfaces.MspMoteID
-        <id>3</id>
-      </interface_config>
-      <motetype_identifier>z12</motetype_identifier>
-    </mote>
-    <mote>
-      <breakpoints />
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>29.154658964132945</x>
-        <y>136.0491061458476</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.mspmote.interfaces.MspMoteID
-        <id>4</id>
-      </interface_config>
-      <motetype_identifier>z12</motetype_identifier>
-    </mote>
-    <mote>
-      <breakpoints />
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>53.6414976419316</x>
-        <y>80.95371912080059</y>
+        <x>55.506179601603364</x>
+        <y>114.03682662261402</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -134,8 +106,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>7.197452381148195</x>
-        <y>82.36733592607528</y>
+        <x>2.644456321632871</x>
+        <y>108.53778829483184</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -144,11 +116,39 @@
       </interface_config>
       <motetype_identifier>z12</motetype_identifier>
     </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>32.445696291549126</x>
+        <y>80.68781998961249</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>7</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>28.89792962846386</x>
+        <y>143.1285132599132</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>10</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
   </simulation>
   <plugin>
     se.sics.cooja.plugins.SimControl
     <width>280</width>
-    <z>0</z>
+    <z>1</z>
     <height>160</height>
     <location_x>400</location_x>
     <location_y>0</location_y>
@@ -161,10 +161,10 @@
       <skin>se.sics.cooja.plugins.skins.TrafficVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.UDGMVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.AddressVisualizerSkin</skin>
-      <viewport>5.390650942609414 0.0 0.0 5.390650942609414 16.837410173540775 -167.39324228628135</viewport>
+      <viewport>5.637349324041301 0.0 0.0 5.637349324041301 21.09227594278619 -140.86542747680812</viewport>
     </plugin_config>
     <width>400</width>
-    <z>1</z>
+    <z>2</z>
     <height>811</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -177,7 +177,7 @@
       <coloring />
     </plugin_config>
     <width>1520</width>
-    <z>2</z>
+    <z>0</z>
     <height>651</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
@@ -198,9 +198,9 @@
     </plugin_config>
     <width>1920</width>
     <z>3</z>
-    <height>166</height>
+    <height>167</height>
     <location_x>0</location_x>
-    <location_y>814</location_y>
+    <location_y>813</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.Notes

@@ -1,6 +1,6 @@
 #include "routing-message.h"
 
-routing_u* create_unicast_message(uint8_t msg, rimeaddr_t addr) {
+routing_u* create_routing_message(uint8_t msg, rimeaddr_t addr) {
 	routing_message_t* st = (routing_message_t*) malloc(sizeof(routing_message_t));
 	if (st == NULL) return NULL;
 	st->msg = msg;
@@ -16,14 +16,12 @@ routing_u* create_unicast_message(uint8_t msg, rimeaddr_t addr) {
 	return message;
 }
 
-void send_unicast_message(struct unicast_conn* unicast, rimeaddr_t* dest, routing_u* message) {
+void send_routing_message(struct runicast_conn* runicast, rimeaddr_t* dest, routing_u* message) {
     packetbuf_copyfrom(message->c, sizeof(routing_message_t));
-	if(!rimeaddr_cmp(dest, &rimeaddr_node_addr)) {
-		unicast_send(unicast, dest);
-	}
+	runicast_send(runicast, dest, MAX_RETRANSMISSIONS);
 }
 
-void free_unicast_message(routing_u* message) {
+void free_routing_message(routing_u* message) {
     if (message != NULL) free(message->st);
     free(message);
 }

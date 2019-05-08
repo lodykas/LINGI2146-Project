@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAX_RETRANSMISSIONS 4
+
 /*----- Broadcast message managment -----------------------------------------*/
 struct routing_message_struct {
 	uint8_t msg;
@@ -18,8 +20,8 @@ union routing_union {
 };
 typedef union routing_union routing_u;
 
-routing_u* create_unicast_message(uint8_t msg, rimeaddr_t addr);
+routing_u* create_routing_message(uint8_t msg, rimeaddr_t addr);
 
-void send_unicast_message(struct unicast_conn* unicast, rimeaddr_t* dest, routing_u* message);
+void send_routing_message(struct runicast_conn* runicast, rimeaddr_t* dest, routing_u* message);
 
-void free_unicast_message(routing_u* message);
+void free_routing_message(routing_u* message);

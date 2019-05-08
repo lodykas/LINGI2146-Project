@@ -14,6 +14,10 @@
 #define CONNECTED 1
 #define SHARING 2
 
+//routing states
+#define READY 0
+#define OCCUPIED 1
+
 //messages
 #define HELLO 0
 #define WELCOME 1
@@ -30,7 +34,6 @@
 #define RESEND_HELLO 3
 #define SEND_WELCOME 1
 #define TIMEOUT_WELCOME 10
-#define RESEND_ROUTE 4
 
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Routing tree discovery");
@@ -41,60 +44,58 @@ AUTOSTART_PROCESSES(&example_broadcast_process);
 // global variables
 int delay_hello = RESEND_HELLO * CLOCK_SECOND;
 int delay_welcome = SEND_WELCOME * CLOCK_SECOND;
-int delay_route = RESEND_ROUTE * CLOCK_SECOND;
 int timeout_welcome = TIMEOUT_WELCOME * CLOCK_SECOND;
+
 uint8_t weight = 255;
 uint8_t state = UNCONNECTED;
+uint8_t routing_state = READY;
+double retransmission = 1.0;
 rimeaddr_t parent;
 table_t table;
 
 static struct broadcast_conn broadcast;
-static struct unicast_conn routing_unicast;
-static struct unicast_conn payload_unicast;
+static struct runicast_conn routing_runicast;
 
 static struct etimer connectedt;
 static struct etimer welcomet;
 static struct etimer hellot;
-static struct etimer routet;
-/*---------------------------------------------------------------------------*/
-static void payload_uc(struct unicast_conn *c, const rimeaddr_t *from) {
-	
-}
-static const struct unicast_callbacks payload_callbacks = {payload_uc};
 
 /*---------------------------------------------------------------------------*/
-static void routing_uc(struct unicast_conn *c, const rimeaddr_t *from) {
-	routing_u message;
-	message.c = (char*) packetbuf_dataptr();
-	rimeaddr_t addr = message.st->addr;
-	
-	switch(message.st->msg) {
+static void recv_routing(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
+{
+    routing_u message;
+    message.c = (char *) packetbuf_dataptr();
+    rimeaddr_t addr = message.st->addr;
+    
+    switch(message.st->msg) {
 		case ROUTE:
 			printf("ROUTE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
-			
 			insert_route(&table, addr, *from);
-			routing_u* ack = create_unicast_message(ROUTE_ACK, addr);
-			send_unicast_message(&routing_unicast, from, ack);
-			free_unicast_message(ack);
-			break;
-		case ROUTE_ACK:
-			printf("ROUTE_ACK message received from %d.%d: '%d.%d'\n", 
-				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
-				
-			{
-				route_t* route = search_route(&table, addr);
-				if (route != NULL) route->shared = 1;
-			}
 			break;
 		default:
-			printf("UNKOWN message received from %d.%d: '%d'\n", from->u8[0], from->u8[1], 
-				message.st->msg);
-			
+			printf("UNKOWN message received from %d.%d: '%d'\n", from->u8[0], 
+				from->u8[1], message.st->msg);
 			break;
 	}
 }
-static const struct unicast_callbacks routing_callbacks = {routing_uc};
+static void sent_routing(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions) {
+	routing_state = READY;
+}
+
+static void timedout_routing(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions)
+{
+	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n",
+		to->u8[0], to->u8[1], retransmissions);
+
+	disconnect();
+}
+
+static const struct runicast_callbacks routing_callbacks = {
+	recv_routing,
+    sent_routing,
+    timedout_routing
+};
 
 /*---------------------------------------------------------------------------*/
 void choose_parent(unsigned char u0, unsigned char u1) {
@@ -102,9 +103,17 @@ void choose_parent(unsigned char u0, unsigned char u1) {
 	parent.u8[1] = u1;
 	printf("New parent chosen : %d.%d\n", u0, u1);
 	
+	routing_state = READY;
+	
 	reset_routes(&table);
 	
 	insert_route(&table, rimeaddr_node_addr, rimeaddr_node_addr);
+}
+
+void disconnect() {
+	reset_routes(&table);
+	state = UNCONNECTED;
+	weight = 255;
 }
 
 static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
@@ -119,9 +128,13 @@ static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 			//printf("HELLO message received from %d.%d: '%d'\n", u0, u1, w);
 	
 			if (state == CONNECTED) {
-			    clock_time_t d = delay_welcome + random_rand() % delay_welcome;
-				etimer_set(&welcomet, d);
-			    state = SHARING;
+				if (parent.u8[0] == u0 && parent.u8[1] == u1) {
+					disconnect();
+				} else {
+				    clock_time_t d = delay_welcome + random_rand() % delay_welcome;
+					etimer_set(&welcomet, d);
+				    state = SHARING;
+				}
 			}
 			break;
 		case WELCOME:
@@ -159,13 +172,15 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 {
 	static struct etimer et;
 	
-	PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
+	PROCESS_EXITHANDLER(
+		broadcast_close(&broadcast);
+		runicast_close(&routing_runicast);
+	)
 
 	PROCESS_BEGIN();
 
 	broadcast_open(&broadcast, 129, &broadcast_call);
-	unicast_open(&routing_unicast, 146, &routing_callbacks);
-	unicast_open(&payload_unicast, 147, &payload_callbacks);
+	runicast_open(&routing_runicast, 146, &routing_callbacks);
 	
 	etimer_set(&hellot, 0);
 	etimer_set(&et, CLOCK_SECOND / 10);
@@ -191,9 +206,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 			case CONNECTED:
 				if (etimer_expired(&connectedt) != 0) {
 					printf("Connection lost...\n");
-					reset_routes(&table);
-					state = UNCONNECTED;
-					weight = 255;
+					disconnect();
 					break;
 				}
 				break;
@@ -206,21 +219,21 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 				}
 			    break;
 			default:
-				printf("WRONG STATE, EXITING...");
-				//PROCESS_END();
+				printf("WRONG STATE, EXITING... (should)");
 				break;
 		}
 		
 		// Managing route sharing
-		if (state > UNCONNECTED && etimer_expired(&routet)) {
+		if (state > UNCONNECTED && routing_state == READY) {
 			route_t* next = next_route(&table);
 			if (next != NULL) {
 				printf("Sending route %d.%d\n", next->addr.u8[0], next->addr.u8[1]);
-				routing_u* route = create_unicast_message(ROUTE, next->addr);
-				send_unicast_message(&routing_unicast, &parent, route);
-				free_unicast_message(route);
+				routing_u* route = create_routing_message(ROUTE, next->addr);
+				send_routing_message(&routing_runicast, &parent, route);
+				free_routing_message(route);
+				next->shared = 1;
+				routing_state = OCCUPIED;
 			}
-			etimer_set(&routet, delay_route + random_rand() % delay_route);
 		}
 	}
 
