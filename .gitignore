@@ -23,8 +23,12 @@ node/*
 !node/routing-table.c
 !node/routing-message.h
 !node/routing-message.c
-!node/broadcast-managment.h
-!node/broadcast-managment.c
+!node/broadcast-message.h
+!node/broadcast-message.c
+!node/data-message.h
+!node/data-message.c
+!node/option-message.h
+!node/option-message.c
 !node/Makefile
 !node/Makefile.target
 

@@ -7,7 +7,9 @@
 
 #include "routing-table.h"
 #include "routing-message.h"
-#include "broadcast-managment.h"
+#include "broadcast-message.h"
+#include "option-message.h"
+#include "data-message.h"
 
 //states
 #define UNCONNECTED 0
@@ -60,6 +62,25 @@ static struct etimer connectedt;
 static struct etimer welcomet;
 static struct etimer hellot;
 
+/*----- Common methods ------------------------------------------------------*/
+void choose_parent(unsigned char u0, unsigned char u1) {
+	parent.u8[0] = u0;
+	parent.u8[1] = u1;
+	printf("New parent chosen : %d.%d\n", u0, u1);
+	
+	routing_state = READY;
+	
+	reset_routes(&table);
+	
+	insert_route(&table, rimeaddr_node_addr, rimeaddr_node_addr);
+}
+
+void disconnect() {
+	reset_routes(&table);
+	state = UNCONNECTED;
+	weight = 255;
+}
+
 /*---------------------------------------------------------------------------*/
 static void recv_routing(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
 {
@@ -98,23 +119,6 @@ static const struct runicast_callbacks routing_callbacks = {
 };
 
 /*---------------------------------------------------------------------------*/
-void choose_parent(unsigned char u0, unsigned char u1) {
-	parent.u8[0] = u0;
-	parent.u8[1] = u1;
-	printf("New parent chosen : %d.%d\n", u0, u1);
-	
-	routing_state = READY;
-	
-	reset_routes(&table);
-	
-	insert_route(&table, rimeaddr_node_addr, rimeaddr_node_addr);
-}
-
-void disconnect() {
-	reset_routes(&table);
-	state = UNCONNECTED;
-	weight = 255;
-}
 
 static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 	discovery_t message;
