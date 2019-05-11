@@ -9,8 +9,8 @@ root/*
 !root/root.c
 !root/routing-table.h
 !root/routing-table.c
-!node/data-message.h
-!node/data-message.c
+!root/data-message.h
+!root/data-message.c
 !root/discovery-message.h
 !root/discovery-message.c
 !root/maintenance-message.h
