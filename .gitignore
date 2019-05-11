@@ -13,6 +13,14 @@ root/*
 !root/routing-message.c
 !root/broadcast-managment.h
 !root/broadcast-managment.c
+!root/discovery-message.h
+!root/discovery-message.c
+!root/maintenance-message.h
+!root/maintenance-message.c
+!root/route-message.h
+!root/route-message.c
+!root/managment-message.h
+!root/managment-message.c
 !root/Makefile
 !root/Makefile.target
 
@@ -29,6 +37,14 @@ node/*
 !node/data-message.c
 !node/option-message.h
 !node/option-message.c
+!node/discovery-message.h
+!node/discovery-message.c
+!node/maintenance-message.h
+!node/maintenance-message.c
+!node/route-message.h
+!node/route-message.c
+!node/managment-message.h
+!node/managment-message.c
 !node/Makefile
 !node/Makefile.target
 

@@ -1,4 +1,4 @@
-#include "routing-message.h"
+#include "data-message.h"
 
 void send_data_message(struct runicast_conn* runicast, rimeaddr_t* dest, char* message, uint8_t length) {
     packetbuf_copyfrom(message, length);

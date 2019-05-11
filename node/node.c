@@ -5,86 +5,186 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "routing-table.h"
-#include "routing-message.h"
-#include "broadcast-message.h"
-#include "option-message.h"
+#include "discovery-message.h"
+#include "maintenance-message.h"
+#include "route-message.h"
+#include "managment-message.h"
 #include "data-message.h"
+#include "routing-table.h"
 
 //states
-#define UNCONNECTED 0
+#define OFFLINE 0
 #define CONNECTED 1
-#define SHARING 2
-
-//routing states
-#define READY 0
-#define OCCUPIED 1
 
 //messages
+// discovery
 #define HELLO 0
-#define WELCOME 1
 
-//routing
-#define ROUTE 3
-#define ROUTE_ACK 4
+//maintenance
+#define WELCOME 1
+#define KEEP_ALIVE 2
+#define ALIVE 3
+
+//table sharing
+#define ROUTE 4
+#define ROUTE_ACK 5
+
+//managment
+#define SUBSCRIBE 6
+#define UNSUBSCRIBE 7
 
 //data
-#define ROOT 5
-#define NODE 6
+#define DATA 8
 
-//timeout
-#define RESEND_HELLO 3
-#define SEND_WELCOME 1
-#define TIMEOUT_WELCOME 10
+//timeout (seconds)
+#define HELLO_D 5
+#define KEEP_ALIVE_D 10
+#define ONLINE_D 30
+#define ROUTE_D 10
 
 /*---------------------------------------------------------------------------*/
-PROCESS(example_broadcast_process, "Routing tree discovery");
-AUTOSTART_PROCESSES(&example_broadcast_process);
+PROCESS(node_tree, "Routing tree discovery");
+PROCESS(node_data, "Data transfer");
+AUTOSTART_PROCESSES(&node_tree, &node_data);
 
 /*---------------------------------------------------------------------------*/
 
 // global variables
-int delay_hello = RESEND_HELLO * CLOCK_SECOND;
-int delay_welcome = SEND_WELCOME * CLOCK_SECOND;
-int timeout_welcome = TIMEOUT_WELCOME * CLOCK_SECOND;
-
+uint8_t state = OFFLINE;
 uint8_t weight = 255;
-uint8_t state = UNCONNECTED;
-uint8_t routing_state = READY;
-double retransmission = 1.0;
 rimeaddr_t parent;
-table_t table;
+table_t routes;
 
-static struct broadcast_conn broadcast;
-static struct runicast_conn routing_runicast;
+unsigned long delay_hello = HELLO_D * CLOCK_SECOND;
+unsigned long delay_keep_alive = KEEP_ALIVE_D * CLOCK_SECOND;
+unsigned long delay_online = ONLINE_D * CLOCK_SECOND;
+unsigned long delay_route = ROUTE_D * CLOCK_SECOND;
 
-static struct etimer connectedt;
-static struct etimer welcomet;
-static struct etimer hellot;
+static struct ctimer hellot;
+static struct ctimer keep_alivet;
+static struct ctimer onlinet;
+static struct ctimer routet;
+
+static struct broadcast_conn discovery_broadcast;
+static struct unicast_conn maintenance_unicast;
+static struct unicast_conn route_unicast;
+
+static struct runicast_conn managment_runicast;
+static struct runicast_conn data_runicast;
 
 /*----- Common methods ------------------------------------------------------*/
-void choose_parent(unsigned char u0, unsigned char u1) {
-	parent.u8[0] = u0;
-	parent.u8[1] = u1;
-	printf("New parent chosen : %d.%d\n", u0, u1);
+void choose_parent(rimeaddr_t addr) {
+	parent = addr;
+	printf("New parent chosen : %d.%d\n", parent.u8[0], parent.u8[1]);
 	
-	routing_state = READY;
+	state = CONNECTED;
+	ctimer_stop(&hellot);
+	ctimer_restart(&keep_alivet);
+	ctimer_restart(&onlinet);
+	ctimer_restart(&routet);
 	
-	reset_routes(&table);
-	
-	insert_route(&table, rimeaddr_node_addr, rimeaddr_node_addr);
+	reset_routes(&routes);
+	insert_route(&routes, rimeaddr_node_addr, rimeaddr_node_addr);
 }
 
 void disconnect() {
-	reset_routes(&table);
-	state = UNCONNECTED;
+    printf("Disconnecting...\n");
+	state = OFFLINE;
 	weight = 255;
+	parent = rimeaddr_node_addr;
+	
+	ctimer_restart(&hellot);
+	ctimer_stop(&keep_alivet);
+	ctimer_stop(&onlinet);
+	ctimer_stop(&routet);
+	
+	reset_routes(&routes);
 }
 
 /*---------------------------------------------------------------------------*/
-static void recv_routing(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
+
+static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
+	discovery_u message;
+	message.c = (char*) packetbuf_dataptr();
+	uint8_t msg = message.st->msg;
+	unsigned char u0 = from->u8[0];
+	unsigned char u1 = from->u8[1];
+
+	switch(msg) {
+		case HELLO:
+			//printf("HELLO message received from %d.%d\n", u0, u1);
+			if (state == CONNECTED) {
+			    if (addr_cmp(parent, *from) != 0) {
+			        // send welcome
+			        maintenance_u* message = create_maintenance_message(WELCOME, weight);
+			        send_maintenance_message(&maintenance_unicast, from, message);
+			        free_maintenance_message(message);
+			    } else {
+			        disconnect();
+			    }
+			}
+			break;
+		default:
+			printf("UNKOWN broadcast message received from %d.%d: '%d'\n", u0, u1, 
+				msg);
+			break;
+	}
+}
+static const struct broadcast_callbacks discovery_callback = {discovery_recv};
+
+/*---------------------------------------------------------------------------*/
+
+static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from) {
+	maintenance_u message;
+	message.c = (char*) packetbuf_dataptr();
+	uint8_t msg = message.st->msg;
+	uint8_t w = message.st->weight;
+	unsigned char u0 = from->u8[0];
+	unsigned char u1 = from->u8[1];
+
+	switch(msg) {
+		case WELCOME:
+			//printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
+			if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
+			    ctimer_restart(&keep_alivet);
+			    ctimer_restart(&onlinet);
+			} else if (w < weight - 1) {
+			    weight = w + 1;
+			    choose_parent(*from);
+			}
+			break;
+		case KEEP_ALIVE:
+			//printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
+			if (state == CONNECTED && addr_cmp(parent, *from) != 0) {
+			    // send alive
+			    maintenance_u* message = create_maintenance_message(ALIVE, weight);
+			    send_maintenance_message(&maintenance_unicast, from, message);
+			    free_maintenance_message(message);
+			}
+			break;
+		case ALIVE:
+			//printf("ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
+		    if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
+		        if (w >= weight) {
+		            disconnect();
+		        } else {
+			        ctimer_restart(&keep_alivet);
+			        ctimer_restart(&onlinet);
+			    }
+			}
+			break;
+		default:
+			printf("UNKOWN unicast message received from %d.%d: '%d'\n", u0, u1, 
+				msg);
+			break;
+	}
+}
+static const struct unicast_callbacks maintenance_callback = {maintenance_recv};
+/*---------------------------------------------------------------------------*/
+
+static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 {
-    routing_u message;
+    route_u message;
     message.c = (char *) packetbuf_dataptr();
     rimeaddr_t addr = message.st->addr;
     
@@ -92,19 +192,148 @@ static void recv_routing(struct runicast_conn *c, const rimeaddr_t *from, uint8_
 		case ROUTE:
 			printf("ROUTE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
-			insert_route(&table, addr, *from);
+			insert_route(&routes, addr, *from);
+			// TODO send route ack
 			break;
+		case ROUTE_ACK:
+		    printf("ROUTE_ACK message received from %d.%d: '%d.%d'\n", 
+				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
+			if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
+			    ctimer_restart(&keep_alivet);
+			    ctimer_restart(&onlinet);
+			}
+			route_t* route = search_route(&routes, addr);
+			if (route != NULL) route->shared = 1;
 		default:
-			printf("UNKOWN message received from %d.%d: '%d'\n", from->u8[0], 
+			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
 				from->u8[1], message.st->msg);
 			break;
 	}
 }
-static void sent_routing(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions) {
-	routing_state = READY;
+static const struct unicast_callbacks route_callback = {route_recv};
+
+/*---------------------------------------------------------------------------*/
+static void send_hello(void* ptr) {
+    ctimer_restart(&hellot);
+    
+    if (state == OFFLINE) {
+        discovery_u* message = create_discovery_message(HELLO);
+        send_discovery_message(&discovery_broadcast, message);
+        free_discovery_message(message);
+    }
 }
 
-static void timedout_routing(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions)
+static void send_keep_alive(void* ptr) {
+    ctimer_restart(&keep_alivet);
+    
+    if (state == CONNECTED) {
+        maintenance_u* message = create_maintenance_message(KEEP_ALIVE, weight);
+        send_maintenance_message(&maintenance_unicast, &parent, message);
+        free_maintenance_message(message);
+    }
+}
+
+static void send_route(void* ptr) {
+    ctimer_restart(&routet);
+    return;
+    
+    if (state == CONNECTED) {
+        // send route
+        route_t* next = next_route(&routes);
+        if (next == NULL) return;
+        
+        route_u* message = create_route_message(ROUTE, next->addr);
+        send_route_message(&route_unicast, &parent, message);
+        free_route_message(message);
+    }
+}
+
+PROCESS_THREAD(node_tree, ev, data)
+{
+	static struct etimer et;
+	
+	PROCESS_EXITHANDLER(
+		broadcast_close(&discovery_broadcast);
+		unicast_close(&maintenance_unicast);
+		unicast_close(&route_unicast);
+	)
+
+	PROCESS_BEGIN();
+
+	broadcast_open(&discovery_broadcast, 129, &discovery_callback);
+	unicast_open(&maintenance_unicast, 140, &maintenance_callback);
+	unicast_open(&route_unicast, 151, &route_callback);
+	
+	ctimer_set(&hellot, delay_hello + rimeaddr_node_addr.u8[0] * 10, send_hello, NULL);
+	ctimer_set(&keep_alivet, delay_keep_alive + rimeaddr_node_addr.u8[0] * 10, send_keep_alive, NULL);
+	ctimer_set(&onlinet, delay_online + rimeaddr_node_addr.u8[0] * 10, disconnect, NULL);
+	ctimer_set(&routet, delay_route + rimeaddr_node_addr.u8[0] * 10, send_route, NULL);
+	etimer_set(&et, CLOCK_SECOND);
+
+	while(1) {
+
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		
+		etimer_restart(&et);
+	}
+
+	PROCESS_END();
+}
+
+/*---------------------------------------------------------------------------*/
+static void recv_managment(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
+{
+    manage_u message;
+    message.c = (char *) packetbuf_dataptr();
+    rimeaddr_t addr = message.st->addr;
+    
+    switch(message.st->msg) {
+		case SUBSCRIBE:
+			printf("SUBSCRIBE message received from %d.%d: '%d.%d'\n", 
+				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
+			if (addr_cmp(parent, *from) == 0) {
+			    ctimer_restart(&keep_alivet);
+			    ctimer_restart(&onlinet);
+			    
+			    if (addr_cmp(addr, rimeaddr_node_addr) == 0) {
+			        // TODO process subscribe
+			    } else {
+			        // TODO transfer to child
+			    }
+			}
+			break;
+		case UNSUBSCRIBE:
+			printf("UNSUBSCRIBE message received from %d.%d: '%d.%d'\n", 
+				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
+			if (addr_cmp(parent, *from) == 0) {
+			    ctimer_restart(&keep_alivet);
+			    ctimer_restart(&onlinet);
+			    
+			    if (addr_cmp(addr, rimeaddr_node_addr) == 0) {
+			        // TODO process unsubscribe
+			    } else {
+			        // TODO transfer to child
+			    }
+			}
+			break;
+		default:
+			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
+				from->u8[1], message.st->msg);
+			break;
+	}
+}
+
+static void recv_data(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
+{
+    char* message = (char *) packetbuf_dataptr();
+    printf("DATA received from %d.%d: '%s'\n", 
+				from->u8[0], from->u8[1], message);
+	// TODO transfer data to parent
+}
+
+static void sent(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions) {}
+
+static void timedout(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions)
 {
 	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n",
 		to->u8[0], to->u8[1], retransmissions);
@@ -112,135 +341,42 @@ static void timedout_routing(struct runicast_conn *c, const rimeaddr_t *to, uint
 	disconnect();
 }
 
-static const struct runicast_callbacks routing_callbacks = {
-	recv_routing,
-    sent_routing,
-    timedout_routing
+static const struct runicast_callbacks managment_callbacks = {
+	recv_managment,
+    sent,
+    timedout
+};
+
+static const struct runicast_callbacks data_callbacks = {
+    recv_data,
+    sent,
+    timedout
 };
 
 /*---------------------------------------------------------------------------*/
 
-static void broadcast_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
-	discovery_t message;
-	message.c = (char*) packetbuf_dataptr();
-	uint8_t w = message.st->weight;
-	unsigned char u0 = from->u8[0];
-	unsigned char u1 = from->u8[1];
-
-	switch(message.st->msg) {
-		case HELLO:
-			//printf("HELLO message received from %d.%d: '%d'\n", u0, u1, w);
-	
-			if (state == CONNECTED) {
-				if (parent.u8[0] == u0 && parent.u8[1] == u1) {
-					disconnect();
-				} else {
-				    clock_time_t d = delay_welcome + random_rand() % delay_welcome;
-					etimer_set(&welcomet, d);
-				    state = SHARING;
-				}
-			}
-			break;
-		case WELCOME:
-			//printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
-			
-			if (state > UNCONNECTED && parent.u8[0] == u0 && parent.u8[1] == u1) {
-				weight = w + 1;
-				etimer_set(&connectedt, timeout_welcome);
-				if (state == CONNECTED) {
-					clock_time_t d = delay_welcome + random_rand() % delay_welcome;
-				    etimer_set(&welcomet, d);
-				    state = SHARING;
-				}
-			} else if (w + 1 < weight) {
-				weight = w + 1;
-				choose_parent(u0, u1);
-				etimer_set(&connectedt, timeout_welcome);
-				clock_time_t d = delay_welcome + random_rand() % delay_welcome;
-				etimer_set(&welcomet, d);
-			    state = SHARING;
-			}
-			break;
-		default:
-			printf("UNKOWN message received from %d.%d: '%d'\n", u0, u1, 
-				message.st->msg);
-			
-			break;
-	}
-}
-static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
-
-/*---------------------------------------------------------------------------*/
-
-PROCESS_THREAD(example_broadcast_process, ev, data)
+PROCESS_THREAD(node_data, ev, data)
 {
 	static struct etimer et;
 	
 	PROCESS_EXITHANDLER(
-		broadcast_close(&broadcast);
-		runicast_close(&routing_runicast);
+		runicast_close(&managment_runicast);
+		runicast_close(&data_runicast);
 	)
 
 	PROCESS_BEGIN();
 
-	broadcast_open(&broadcast, 129, &broadcast_call);
-	runicast_open(&routing_runicast, 146, &routing_callbacks);
+	runicast_open(&managment_runicast, 162, &managment_callbacks);
+	runicast_open(&data_runicast, 173, &data_callbacks);
 	
-	etimer_set(&hellot, 0);
-	etimer_set(&et, CLOCK_SECOND / 10);
+	etimer_set(&et, CLOCK_SECOND);
 
 	while(1) {
 
-        PROCESS_WAIT_EVENT_UNTIL(
-        	etimer_expired(&et)
-        );
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 		
-		etimer_reset(&et);
-	
-		// Managing broadcast discovery
-		switch (state) {
-			case UNCONNECTED:
-				if (etimer_expired(&hellot) != 0) {
-					discovery_t* hello = create_broadcast_message(HELLO, 0);
-					send_broadcast_message(&broadcast, hello);
-					free_broadcast_message(hello);
-					etimer_set(&hellot, delay_hello + random_rand() % delay_hello);
-				}
-				break;
-			case CONNECTED:
-				if (etimer_expired(&connectedt) != 0) {
-					printf("Connection lost...\n");
-					disconnect();
-					break;
-				}
-				break;
-			case SHARING:
-			    if (etimer_expired(&welcomet) != 0) {
-			        state = CONNECTED;
-				    discovery_t* welcome = create_broadcast_message(WELCOME, weight);
-				    send_broadcast_message(&broadcast, welcome);
-				    free_broadcast_message(welcome);
-				}
-			    break;
-			default:
-				printf("WRONG STATE, EXITING... (should)");
-				break;
-		}
-		
-		// Managing route sharing
-		if (state > UNCONNECTED && routing_state == READY) {
-			route_t* next = next_route(&table);
-			if (next != NULL) {
-				printf("Sending route %d.%d\n", next->addr.u8[0], next->addr.u8[1]);
-				routing_u* route = create_routing_message(ROUTE, next->addr);
-				send_routing_message(&routing_runicast, &parent, route);
-				free_routing_message(route);
-				next->shared = 1;
-				routing_state = OCCUPIED;
-			}
-		}
+		etimer_restart(&et);
 	}
 
 	PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/
