@@ -9,10 +9,8 @@ root/*
 !root/root.c
 !root/routing-table.h
 !root/routing-table.c
-!root/routing-message.h
-!root/routing-message.c
-!root/broadcast-managment.h
-!root/broadcast-managment.c
+!node/data-message.h
+!node/data-message.c
 !root/discovery-message.h
 !root/discovery-message.c
 !root/maintenance-message.h
@@ -29,14 +27,8 @@ node/*
 !node/node.c
 !node/routing-table.h
 !node/routing-table.c
-!node/routing-message.h
-!node/routing-message.c
-!node/broadcast-message.h
-!node/broadcast-message.c
 !node/data-message.h
 !node/data-message.c
-!node/option-message.h
-!node/option-message.c
 !node/discovery-message.h
 !node/discovery-message.c
 !node/maintenance-message.h
