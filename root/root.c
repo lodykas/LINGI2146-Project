@@ -134,9 +134,9 @@ static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			insert_route(&routes, addr, *from);
 			// send route ack
-			route_u* message = create_route_message(ROUTE_ACK, addr);
-			send_route_message(&route_unicast, *from, message);
-			free_route_message(message);
+			route_u* ack = create_route_message(ROUTE_ACK, addr);
+			send_route_message(&route_unicast, from, ack);
+			free_route_message(ack);
 			break;
 		default:
 			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
@@ -182,7 +182,6 @@ static void recv_managment(struct runicast_conn *c, const rimeaddr_t *from, uint
 {
     manage_u message;
     message.c = (char *) packetbuf_dataptr();
-    rimeaddr_t addr = message.st->addr;
     
     switch(message.st->msg) {
 		default:

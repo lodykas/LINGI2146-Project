@@ -30,6 +30,8 @@ void delete_route(table_t* table, rimeaddr_t addr);
 
 route_t* search_route(table_t* table, rimeaddr_t addr);
 
+void route_shared(table_t* table, rimeaddr_t addr);
+
 route_t* next_route(table_t* table);
 
 void reset_routes(table_t* table);

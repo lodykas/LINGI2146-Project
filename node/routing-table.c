@@ -15,6 +15,7 @@ int addr_cmp(rimeaddr_t a1, rimeaddr_t a2) {
 		((uint8_t)(a1.u8[1]) - (uint8_t)(a2.u8[1]));
 }
 
+// TODO update timestamp update
 void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop) {
 	route_t* previous = NULL;
 	route_t* next = table->first;
@@ -83,6 +84,13 @@ route_t* search_route(table_t* table, rimeaddr_t addr) {
 	return NULL;
 }
 
+// TODO update timestamp shared
+void route_shared(table_t* table, rimeaddr_t addr) {
+    route_t* route = search_route(table, addr);
+    if (route != NULL) route->shared = 1;
+}
+
+// TODO tenir compte des timestamp shared and update
 route_t* next_route(table_t* table) {
 	route_t* previous = NULL;
 	route_t* next = table->first;
@@ -95,6 +103,7 @@ route_t* next_route(table_t* table) {
 	return NULL;
 }
 
+// TODO reset timestamp shared
 void reset_routes(table_t* table) {
 	route_t* previous = NULL;
 	route_t* next = table->first;

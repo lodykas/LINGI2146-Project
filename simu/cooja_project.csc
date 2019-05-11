@@ -78,8 +78,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>60.29566459676848</x>
-        <y>75.01139332867606</y>
+        <x>20.13282675033504</x>
+        <y>176.10545034133506</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -148,8 +148,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>33.1210050432438</x>
-        <y>107.73371932772109</y>
+        <x>64.48868092045738</x>
+        <y>48.429207122364154</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>

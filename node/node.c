@@ -37,10 +37,20 @@
 #define DATA 8
 
 //timeout (seconds)
-#define HELLO_D 5
-#define KEEP_ALIVE_D 10
-#define ONLINE_D 30
-#define ROUTE_D 10
+/*
+ * WELCOME_D (node) < HELLO_D
+ * 
+ */
+#define HELLO_D_MIN 3
+#define HELLO_D_MAX 6
+#define KEEP_ALIVE_D_MIN 10
+#define KEEP_ALIVE_D_MAX 15
+#define ONLINE_D_MIN 30
+#define ONLINE_D_MAX 45
+#define ROUTE_D_MIN 7
+#define ROUTE_D_MAX 9
+#define WELCOME_D_MIN 3
+#define WELCOME_D_MAX 5
 
 /*---------------------------------------------------------------------------*/
 PROCESS(node_tree, "Routing tree discovery");
@@ -55,15 +65,11 @@ uint8_t weight = 255;
 rimeaddr_t parent;
 table_t routes;
 
-unsigned long delay_hello = HELLO_D * CLOCK_SECOND;
-unsigned long delay_keep_alive = KEEP_ALIVE_D * CLOCK_SECOND;
-unsigned long delay_online = ONLINE_D * CLOCK_SECOND;
-unsigned long delay_route = ROUTE_D * CLOCK_SECOND;
-
 static struct ctimer hellot;
 static struct ctimer keep_alivet;
 static struct ctimer onlinet;
 static struct ctimer routet;
+static struct ctimer welcomet;
 
 static struct broadcast_conn discovery_broadcast;
 static struct unicast_conn maintenance_unicast;
@@ -101,6 +107,13 @@ void disconnect() {
 	flush_table(&routes);
 }
 
+void parent_refresh(uint8_t w) {
+    if (w == 255) weight = 255;
+    else weight = w + 1;
+    ctimer_restart(&keep_alivet);
+    ctimer_restart(&onlinet);
+}
+
 /*---------------------------------------------------------------------------*/
 
 static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
@@ -117,23 +130,22 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 			if (state == CONNECTED) {
 			    if (addr_cmp(parent, *from) != 0) {
 			        // send welcome
-			        discovery_u* message = create_discovery_message(WELCOME, weight);
-			        send_discovery_message(&discovery_broadcast, message);
-			        free_discovery_message(message);
+			        if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 			    } else {
+			        // parent lost connection
 			        weight = 255;
 			    }
 			}
 			break;
 		case WELCOME:
-			//printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
+			printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (w < weight - 1) {
 		        weight = w + 1;
 		        choose_parent(*from);
 		    } else if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
-		        ctimer_restart(&keep_alivet);
-			    ctimer_restart(&onlinet);
-			    // TODO broadcast welcome
+		        parent_refresh(w);
+			    // broadcast welcome
+			    if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 		    }
 		    break;
 		default:
@@ -156,21 +168,18 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from) {
 
 	switch(msg) {
 		case KEEP_ALIVE:
-			//printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
+			printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
 			if (state == CONNECTED && addr_cmp(parent, *from) != 0) {
 			    // send alive
-			    maintenance_u* message = create_maintenance_message(ALIVE, weight);
-			    send_maintenance_message(&maintenance_unicast, from, message);
-			    free_maintenance_message(message);
+			    maintenance_u* alive = create_maintenance_message(ALIVE, weight);
+			    send_maintenance_message(&maintenance_unicast, from, alive);
+			    free_maintenance_message(alive);
 			}
 			break;
 		case ALIVE:
-			//printf("ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
+			printf("ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
-		        if (w == 255) weight = 255;
-		        else weight = w + 1;
-		        ctimer_restart(&keep_alivet);
-		        ctimer_restart(&onlinet);
+		        parent_refresh(w);
 			}
 			break;
 		default:
@@ -186,17 +195,18 @@ static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 {
     route_u message;
     message.c = (char *) packetbuf_dataptr();
+    uint8_t msg = message.st->msg;
     rimeaddr_t addr = message.st->addr;
     
-    switch(message.st->msg) {
+    switch(msg) {
 		case ROUTE:
 			printf("ROUTE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			insert_route(&routes, addr, *from);
 			// send route ack
-			route_u* message = create_route_message(ROUTE_ACK, addr);
-			send_route_message(&route_unicast, *from, message);
-			free_route_message(message);
+			route_u* ack = create_route_message(ROUTE_ACK, addr);
+			send_route_message(&route_unicast, from, ack);
+			free_route_message(ack);
 			break;
 		case ROUTE_ACK:
 		    printf("ROUTE_ACK message received from %d.%d: '%d.%d'\n", 
@@ -205,11 +215,11 @@ static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 			    ctimer_restart(&keep_alivet);
 			    ctimer_restart(&onlinet);
 			}
-			route_t* route = search_route(&routes, addr);
-			if (route != NULL) route->shared = 1;
+			route_shared(&routes, addr);
+			break;
 		default:
 			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
-				from->u8[1], message.st->msg);
+				from->u8[1], msg);
 			break;
 	}
 }
@@ -250,6 +260,19 @@ static void send_route(void* ptr) {
     }
 }
 
+void send_welcome(void* ptr) {
+    discovery_u* welcome = create_discovery_message(WELCOME, weight);
+    send_discovery_message(&discovery_broadcast, welcome);
+    free_discovery_message(welcome);
+}
+
+unsigned int delay(unsigned int min, unsigned int max) {
+    uint8_t u0 = rimeaddr_node_addr.u8[0];
+    uint8_t u1 = rimeaddr_node_addr.u8[1];
+    unsigned int var = ((u1 * CLOCK_SECOND) + u0 * 17 + u1);
+    return min * CLOCK_SECOND + var % ((max - min) * CLOCK_SECOND);
+}
+
 PROCESS_THREAD(node_tree, ev, data)
 {
 	static struct etimer et;
@@ -266,10 +289,17 @@ PROCESS_THREAD(node_tree, ev, data)
 	unicast_open(&maintenance_unicast, 140, &maintenance_callback);
 	unicast_open(&route_unicast, 151, &route_callback);
 	
-	ctimer_set(&hellot, delay_hello + rimeaddr_node_addr.u8[0] * 10, send_hello, NULL);
-	ctimer_set(&keep_alivet, delay_keep_alive + rimeaddr_node_addr.u8[0] * 10, send_keep_alive, NULL);
-	ctimer_set(&onlinet, delay_online + rimeaddr_node_addr.u8[0] * 10, disconnect, NULL);
-	ctimer_set(&routet, delay_route + rimeaddr_node_addr.u8[0] * 10, send_route, NULL);
+	ctimer_set(&hellot, delay(HELLO_D_MIN, HELLO_D_MAX), send_hello, NULL);
+	ctimer_set(&keep_alivet, delay(KEEP_ALIVE_D_MIN, KEEP_ALIVE_D_MAX), send_keep_alive, NULL);
+	ctimer_set(&onlinet, delay(ONLINE_D_MIN, ONLINE_D_MAX), disconnect, NULL);
+	ctimer_set(&routet, delay(ROUTE_D_MIN, ROUTE_D_MAX), send_route, NULL);
+	ctimer_set(&welcomet, delay(WELCOME_D_MIN, WELCOME_D_MAX), send_welcome, NULL);
+	
+	ctimer_stop(&keep_alivet);
+	ctimer_stop(&onlinet);
+	ctimer_stop(&routet);
+	ctimer_stop(&welcomet);
+	
 	etimer_set(&et, CLOCK_SECOND);
 
 	while(1) {
@@ -340,7 +370,6 @@ static void timedout(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retr
 	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n",
 		to->u8[0], to->u8[1], retransmissions);
 
-	disconnect();
 }
 
 static const struct runicast_callbacks managment_callbacks = {

@@ -83,6 +83,11 @@ route_t* search_route(table_t* table, rimeaddr_t addr) {
 	return NULL;
 }
 
+void route_shared(table_t* table, rimeaddr_t addr) {
+    route_t* route = search_route(table, addr);
+    if (route != NULL) route->shared = 1;
+}
+
 route_t* next_route(table_t* table) {
 	route_t* previous = NULL;
 	route_t* next = table->first;

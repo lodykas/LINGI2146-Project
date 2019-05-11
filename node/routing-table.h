@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// TODO add timestamp for shared and updated
 struct route {
 	rimeaddr_t addr;
 	rimeaddr_t nexthop;
@@ -29,6 +30,8 @@ void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop);
 void delete_route(table_t* table, rimeaddr_t addr);
 
 route_t* search_route(table_t* table, rimeaddr_t addr);
+
+void route_shared(table_t* table, rimeaddr_t addr);
 
 route_t* next_route(table_t* table);
 
