@@ -19,9 +19,9 @@
 //messages
 // discovery
 #define HELLO 0
+#define WELCOME 1
 
 //maintenance
-#define WELCOME 1
 #define KEEP_ALIVE 2
 #define ALIVE 3
 
@@ -40,6 +40,7 @@
 #define HELLO_D 5
 #define KEEP_ALIVE_D 10
 #define ONLINE_D 30
+#define WELCOME_D 60
 #define ROUTE_D 10
 
 /*---------------------------------------------------------------------------*/
@@ -52,12 +53,23 @@ AUTOSTART_PROCESSES(&node_tree, &node_data);
 // global variables
 table_t routes;
 
+unsigned long delay_welcome = WELCOME_D * CLOCK_SECOND;
+
+static struct ctimer welcomet;
+
 static struct broadcast_conn discovery_broadcast;
 static struct unicast_conn maintenance_unicast;
 static struct unicast_conn route_unicast;
 
 static struct runicast_conn managment_runicast;
 static struct runicast_conn data_runicast;
+
+static void send_welcome(void* ptr) {
+    ctimer_restart(&welcomet);
+    discovery_u* message = create_discovery_message(WELCOME, 0);
+    send_discovery_message(&discovery_broadcast, message);
+    free_discovery_message(message);
+}
 
 /*---------------------------------------------------------------------------*/
 
@@ -72,9 +84,7 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 		case HELLO:
 			//printf("HELLO message received from %d.%d\n", u0, u1);
 	        // send welcome
-	        {maintenance_u* message = create_maintenance_message(WELCOME, 0);
-	        send_maintenance_message(&maintenance_unicast, from, message);
-	        free_maintenance_message(message);}
+	        send_welcome(NULL);
 			break;
 		default:
 			printf("UNKOWN broadcast message received from %d.%d: '%d'\n", u0, u1, 
@@ -115,18 +125,22 @@ static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 {
     route_u message;
     message.c = (char *) packetbuf_dataptr();
+    uint8_t msg = message.st->msg;
     rimeaddr_t addr = message.st->addr;
     
-    switch(message.st->msg) {
+    switch(msg) {
 		case ROUTE:
 			printf("ROUTE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			insert_route(&routes, addr, *from);
-			// TODO send route ack
+			// send route ack
+			route_u* message = create_route_message(ROUTE_ACK, addr);
+			send_route_message(&route_unicast, *from, message);
+			free_route_message(message);
 			break;
 		default:
 			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
-				from->u8[1], message.st->msg);
+				from->u8[1], msg);
 			break;
 	}
 }
@@ -150,6 +164,7 @@ PROCESS_THREAD(node_tree, ev, data)
 	unicast_open(&maintenance_unicast, 140, &maintenance_callback);
 	unicast_open(&route_unicast, 151, &route_callback);
 	
+	ctimer_set(&welcomet, delay_welcome, send_welcome, NULL);
 	etimer_set(&et, CLOCK_SECOND);
 
 	while(1) {

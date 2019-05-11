@@ -8,6 +8,7 @@
 /*----- Broadcast message managment -----------------------------------------*/
 struct discovery_message {
     uint8_t msg;
+    uint8_t weight;
 };
 typedef struct discovery_message discovery_message_t;
 
@@ -17,7 +18,7 @@ union discovery_union {
 };
 typedef union discovery_union discovery_u;
 
-discovery_u* create_discovery_message(uint8_t msg);
+discovery_u* create_discovery_message(uint8_t msg, uint8_t weight);
 
 void send_discovery_message(struct broadcast_conn* broadcast, discovery_u* message);
 

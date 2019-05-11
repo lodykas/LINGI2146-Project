@@ -19,9 +19,9 @@
 //messages
 // discovery
 #define HELLO 0
+#define WELCOME 1
 
 //maintenance
-#define WELCOME 1
 #define KEEP_ALIVE 2
 #define ALIVE 3
 
@@ -98,7 +98,7 @@ void disconnect() {
 	ctimer_stop(&onlinet);
 	ctimer_stop(&routet);
 	
-	reset_routes(&routes);
+	flush_table(&routes);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -107,6 +107,7 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 	discovery_u message;
 	message.c = (char*) packetbuf_dataptr();
 	uint8_t msg = message.st->msg;
+	uint8_t w = message.st->msg;
 	unsigned char u0 = from->u8[0];
 	unsigned char u1 = from->u8[1];
 
@@ -116,14 +117,25 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 			if (state == CONNECTED) {
 			    if (addr_cmp(parent, *from) != 0) {
 			        // send welcome
-			        maintenance_u* message = create_maintenance_message(WELCOME, weight);
-			        send_maintenance_message(&maintenance_unicast, from, message);
-			        free_maintenance_message(message);
+			        discovery_u* message = create_discovery_message(WELCOME, weight);
+			        send_discovery_message(&discovery_broadcast, message);
+			        free_discovery_message(message);
 			    } else {
-			        disconnect();
+			        weight = 255;
 			    }
 			}
 			break;
+		case WELCOME:
+			//printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
+		    if (w < weight - 1) {
+		        weight = w + 1;
+		        choose_parent(*from);
+		    } else if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
+		        ctimer_restart(&keep_alivet);
+			    ctimer_restart(&onlinet);
+			    // TODO broadcast welcome
+		    }
+		    break;
 		default:
 			printf("UNKOWN broadcast message received from %d.%d: '%d'\n", u0, u1, 
 				msg);
@@ -143,16 +155,6 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from) {
 	unsigned char u1 = from->u8[1];
 
 	switch(msg) {
-		case WELCOME:
-			//printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
-			if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
-			    ctimer_restart(&keep_alivet);
-			    ctimer_restart(&onlinet);
-			} else if (w < weight - 1) {
-			    weight = w + 1;
-			    choose_parent(*from);
-			}
-			break;
 		case KEEP_ALIVE:
 			//printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
 			if (state == CONNECTED && addr_cmp(parent, *from) != 0) {
@@ -165,12 +167,10 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from) {
 		case ALIVE:
 			//printf("ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (state == CONNECTED && addr_cmp(parent, *from) == 0) {
-		        if (w >= weight) {
-		            disconnect();
-		        } else {
-			        ctimer_restart(&keep_alivet);
-			        ctimer_restart(&onlinet);
-			    }
+		        if (w == 255) weight = 255;
+		        else weight = w + 1;
+		        ctimer_restart(&keep_alivet);
+		        ctimer_restart(&onlinet);
 			}
 			break;
 		default:
@@ -193,7 +193,10 @@ static void route_recv(struct unicast_conn *c, const rimeaddr_t *from)
 			printf("ROUTE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			insert_route(&routes, addr, *from);
-			// TODO send route ack
+			// send route ack
+			route_u* message = create_route_message(ROUTE_ACK, addr);
+			send_route_message(&route_unicast, *from, message);
+			free_route_message(message);
 			break;
 		case ROUTE_ACK:
 		    printf("ROUTE_ACK message received from %d.%d: '%d.%d'\n", 
@@ -217,7 +220,7 @@ static void send_hello(void* ptr) {
     ctimer_restart(&hellot);
     
     if (state == OFFLINE) {
-        discovery_u* message = create_discovery_message(HELLO);
+        discovery_u* message = create_discovery_message(HELLO, weight);
         send_discovery_message(&discovery_broadcast, message);
         free_discovery_message(message);
     }
@@ -235,7 +238,6 @@ static void send_keep_alive(void* ptr) {
 
 static void send_route(void* ptr) {
     ctimer_restart(&routet);
-    return;
     
     if (state == CONNECTED) {
         // send route
