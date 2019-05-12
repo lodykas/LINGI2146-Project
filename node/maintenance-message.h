@@ -8,6 +8,7 @@
 /*----- Broadcast message managment -----------------------------------------*/
 struct maintenance_message_struct {
 	uint8_t msg;
+	rimeaddr_t addr;
 	uint8_t weight;
 };
 typedef struct maintenance_message_struct maintenance_message_t;
@@ -18,7 +19,7 @@ union maintenance_union {
 };
 typedef union maintenance_union maintenance_u;
 
-maintenance_u* create_maintenance_message(uint8_t msg, uint8_t weight);
+maintenance_u* create_maintenance_message(uint8_t msg, rimeaddr_t addr, uint8_t weight);
 
 void send_maintenance_message(struct unicast_conn* unicast, const rimeaddr_t* dest, maintenance_u* message);
 

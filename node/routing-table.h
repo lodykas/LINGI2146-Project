@@ -5,11 +5,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// TODO add timestamp for shared and updated
+#define SHARE_D 600
+#define EXPIRE_D 1800
+
+static const unsigned long delay_share = SHARE_D * CLOCK_SECOND;
+static const unsigned long delay_expire = EXPIRE_D * CLOCK_SECOND;
+
 struct route {
 	rimeaddr_t addr;
 	rimeaddr_t nexthop;
-	uint8_t shared;
+	struct timer sharet;
+	struct timer expiret;
 	struct route* next;
 };
 typedef struct route route_t;
@@ -23,7 +29,7 @@ typedef struct table table_t;
 /*----- Table managment -----------------------------------------------------*/
 route_t* create_route(rimeaddr_t addr, rimeaddr_t nexthop);
 
-int addr_cmp(rimeaddr_t a1, rimeaddr_t a2);
+int my_addr_cmp(rimeaddr_t a1, rimeaddr_t a2);
 
 void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop);
 

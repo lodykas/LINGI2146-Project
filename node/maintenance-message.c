@@ -1,9 +1,10 @@
 #include "maintenance-message.h"
 
-maintenance_u* create_maintenance_message(uint8_t msg, uint8_t weight) {
+maintenance_u* create_maintenance_message(uint8_t msg, rimeaddr_t addr, uint8_t weight) {
 	maintenance_message_t* st = (maintenance_message_t*) malloc(sizeof(maintenance_message_t));
 	if (st == NULL) return NULL;
 	st->msg = msg;
+	st->addr = addr;
 	st->weight = weight;
 	
 	maintenance_u* message = (maintenance_u*) malloc(sizeof(maintenance_u));

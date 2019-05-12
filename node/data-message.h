@@ -8,6 +8,21 @@
 #define MAX_RETRANSMISSIONS 4
 
 /*----- Broadcast message managment -----------------------------------------*/
+struct data_message_struct {
+	uint8_t msg;
+	rimeaddr_t addr;
+	double value;
+};
+typedef struct data_message_struct data_message_t;
 
-void send_data_message(struct runicast_conn* runicast, rimeaddr_t* dest, char* message, uint8_t length);
+union data_union {
+	char* c;
+	data_message_t* st;
+};
+typedef union data_union data_u;
 
+data_u* create_data_message(uint8_t msg, rimeaddr_t addr, double value);
+
+void send_data_message(struct runicast_conn* runicast, rimeaddr_t* dest, data_u* message);
+
+void free_data_message(data_u* message);

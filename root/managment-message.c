@@ -1,10 +1,11 @@
 #include "managment-message.h"
 
-manage_u* create_manage_message(uint8_t msg, rimeaddr_t addr) {
+manage_u* create_manage_message(uint8_t msg, rimeaddr_t addr, uint8_t weight) {
 	manage_message_t* st = (manage_message_t*) malloc(sizeof(manage_message_t));
 	if (st == NULL) return NULL;
 	st->msg = msg;
 	st->addr = addr;
+	st->weight = weight;
 	
 	manage_u* message = (manage_u*) malloc(sizeof(manage_u));
 	if (message == NULL) {
