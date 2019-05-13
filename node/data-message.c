@@ -1,6 +1,6 @@
 #include "data-message.h"
 
-data_u* create_data_message(uint8_t msg, rimeaddr_t addr, double value) {
+data_u* create_data_message(uint8_t msg, rimeaddr_t addr, uint8_t value) {
 	data_message_t* st = (data_message_t*) malloc(sizeof(data_message_t));
 	if (st == NULL) return NULL;
 	st->msg = msg;

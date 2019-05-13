@@ -10,6 +10,7 @@
 #include "managment-message.h"
 #include "data-message.h"
 #include "routing-table.h"
+#include "sensor-data.h"
 
 //states
 #define OFFLINE 0
@@ -35,7 +36,10 @@
 #define UNSUBSCRIBE 8
 
 //data
-#define DATA 9
+#define TEMPERATURE 9
+#define HUMIDITY 10
+
+#define MAX_RETRANSMISSIONS 3
 
 //timeout (seconds)
 /*
@@ -54,6 +58,8 @@
 #define WELCOME_D_MAX 5
 #define ROOT_CHECK_D_MIN 3
 #define ROOT_CHECK_D_MAX 5
+#define DATA_D_MIN 30
+#define DATA_D_MAX 45
 
 /*---------------------------------------------------------------------------*/
 PROCESS(node_tree, "Routing tree discovery");
@@ -67,6 +73,8 @@ uint8_t debug = 0;
 // global variables
 uint8_t state = OFFLINE;
 uint8_t weight = MAX_WEIGHT;
+uint8_t temperature_sharing = 1;
+uint8_t humidity_sharing = 1;
 rimeaddr_t parent;
 table_t routes;
 
@@ -116,6 +124,7 @@ void disconnect() {
 }
 
 void parent_refresh(uint8_t w) {
+    printf("Parent refresh...\n");
     if (w == MAX_WEIGHT) weight = MAX_WEIGHT;
     else weight = w + 1;
     ctimer_restart(&keep_alivet);
@@ -133,15 +142,12 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 	unsigned char u1 = from->u8[1];
 	
 	uint8_t parent_cmp = my_addr_cmp(parent, *from);
-	if (parent_cmp == 0 && msg != HELLO) {
-		parent_refresh(w);
-	}
 
 	switch(msg) {
 		case HELLO:
 			if (debug) printf("HELLO message received from %d.%d\n", u0, u1);
 			if (state == CONNECTED) {
-			    if (my_addr_cmp(parent, *from) != 0) {
+			    if (parent_cmp != 0) {
 			        // send welcome
 			        if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 			    } else {
@@ -154,13 +160,17 @@ static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 			if (debug) printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (w < weight - 1) {
 		        choose_parent(*from, w);
+		    } else if (parent_cmp == 0) {
+		        parent_refresh(w);
 		    }
 		    break;
 		case ROOT_CHECK:
 		    if (debug) printf("ROOT_CHECK message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (w < weight - 1) {
 		        choose_parent(*from, w);
-		    } 
+		    } else if (parent_cmp == 0) {
+		        parent_refresh(w);
+		    }
 		    // broadcast root_check
 		    if (state == CONNECTED && parent_cmp == 0 && ctimer_expired(&root_checkt)) ctimer_restart(&root_checkt);
 		    break;
@@ -335,23 +345,24 @@ static void recv_managment(struct runicast_conn *c, const rimeaddr_t *from, uint
     uint8_t msg = message.st->msg;
     rimeaddr_t addr = message.st->addr;
     uint8_t w = message.st->weight;
+    uint8_t data = message.st->data;
     
     switch(msg) {
 		case SUBSCRIBE:
-			printf("SUBSCRIBE message received from %d.%d: '%d.%d'\n", 
+			if (debug) printf("SUBSCRIBE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			if (my_addr_cmp(parent, *from) == 0) {
 			    parent_refresh(w);
 			    
 			    if (my_addr_cmp(addr, rimeaddr_node_addr) == 0) {
-			        // TODO process subscribe
+			        // process subscribe
+			        if (data == TEMPERATURE) temperature_sharing = 1;
+			        else if (data == HUMIDITY) humidity_sharing = 1;
 			    } else {
 			        // transfer to child
 			        route_t* route = search_route(&routes, addr);
 			        if (route != NULL) {
-			            manage_u* subscribe = create_manage_message(SUBSCRIBE, addr, weight);
-			            send_manage_message(&managment_runicast, &(route->nexthop), subscribe);
-			            free_manage_message(subscribe);
+			            send_manage_message(&managment_runicast, &(route->nexthop), &message);
 			        } else {
 			            // tell parent that no more route exist
 			            maintenance_u* withdraw = create_maintenance_message(ROUTE_WITHDRAW, addr, weight);
@@ -362,20 +373,20 @@ static void recv_managment(struct runicast_conn *c, const rimeaddr_t *from, uint
 			}
 			break;
 		case UNSUBSCRIBE:
-			printf("UNSUBSCRIBE message received from %d.%d: '%d.%d'\n", 
+			if (debug) printf("UNSUBSCRIBE message received from %d.%d: '%d.%d'\n", 
 				from->u8[0], from->u8[1], addr.u8[0], addr.u8[1]);
 			if (my_addr_cmp(parent, *from) == 0) {
 			    parent_refresh(w);
 			    
 			    if (my_addr_cmp(addr, rimeaddr_node_addr) == 0) {
-			        // TODO process unsubscribe
+			        // process unsubscribe
+			        if (data == TEMPERATURE) temperature_sharing = 0;
+			        else if (data == HUMIDITY) humidity_sharing = 0;
 			    } else {
 			        // transfer to child
 			        route_t* route = search_route(&routes, addr);
 			        if (route != NULL) {
-			            manage_u* unsubscribe = create_manage_message(UNSUBSCRIBE, addr, weight);
-			            send_manage_message(&managment_runicast, &(route->nexthop), unsubscribe);
-			            free_manage_message(unsubscribe);
+			            send_manage_message(&managment_runicast, &(route->nexthop), &message);
 			        } else {
 			            // tell parent that no more route exist
 			            maintenance_u* withdraw = create_maintenance_message(ROUTE_WITHDRAW, addr, weight);
@@ -403,8 +414,13 @@ static void recv_data(struct runicast_conn *c, const rimeaddr_t *from, uint8_t s
     insert_route(&routes, addr, *from);
     
     switch(msg) {
-        case DATA:
-            printf("DATA received from %d.%d\n", from->u8[0], from->u8[1]);
+        case TEMPERATURE:
+            printf("TEMPERATURE received from %d.%d\n", from->u8[0], from->u8[1]);
+	        // transfer data to parent
+	        send_data_message(&data_runicast, &parent, &data);
+            break;
+        case HUMIDITY:
+            printf("HUMIDITY received from %d.%d\n", from->u8[0], from->u8[1]);
 	        // transfer data to parent
 	        send_data_message(&data_runicast, &parent, &data);
             break;
@@ -437,6 +453,10 @@ static const struct runicast_callbacks data_callbacks = {
 };
 
 /*---------------------------------------------------------------------------*/
+sensor_data_t* temperature;
+sensor_data_t* humidity;
+uint8_t last_temp = 0;
+uint8_t last_hum = 0;
 
 PROCESS_THREAD(node_data, ev, data)
 {
@@ -452,11 +472,39 @@ PROCESS_THREAD(node_data, ev, data)
 	runicast_open(&managment_runicast, 162, &managment_callbacks);
 	runicast_open(&data_runicast, 173, &data_callbacks);
 	
-	etimer_set(&et, CLOCK_SECOND);
+	etimer_set(&et, delay(DATA_D_MIN, DATA_D_MAX));
+	
+	temperature = create_sensor(15, 15);
+	humidity = create_sensor(50, 50);
 
 	while(1) {
 
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+        
+        if (state == CONNECTED) {
+            uint8_t new_temp = get_data(temperature);
+            if (temperature_sharing && new_temp != last_temp) {
+                // send temp
+                last_temp = new_temp;
+                data_u* data = create_data_message(TEMPERATURE, rimeaddr_node_addr, last_temp);
+                send_data_message(&data_runicast, &parent, data);
+                free_data_message(data);
+            }
+        }
+        
+		etimer_restart(&et);
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+            
+	    if (state == CONNECTED) {
+            uint8_t new_hum = get_data(humidity);
+            if (humidity_sharing && new_hum != last_hum) {
+                // send hum
+                last_hum = new_hum;
+                data_u* data = create_data_message(HUMIDITY, rimeaddr_node_addr, last_hum);
+                send_data_message(&data_runicast, &parent, data);
+                free_data_message(data);
+            }
+        }
 		
 		etimer_restart(&et);
 	}

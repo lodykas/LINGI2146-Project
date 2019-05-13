@@ -37,6 +37,8 @@ node/*
 !node/route-message.c
 !node/managment-message.h
 !node/managment-message.c
+!node/sensor-data.h
+!node/sensor-data.c
 !node/Makefile
 !node/Makefile.target
 

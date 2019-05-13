@@ -31,7 +31,8 @@
 #define UNSUBSCRIBE 8
 
 //data
-#define DATA 9
+#define TEMPERATURE 9
+#define HUMIDITY 10
 
 //timeout (seconds)
 /*
@@ -212,15 +213,21 @@ static void recv_data(struct runicast_conn *c, const rimeaddr_t *from, uint8_t s
     data.c = (char*) packetbuf_dataptr();
     uint8_t msg = data.st->msg;
     rimeaddr_t addr = data.st->addr;
+    uint8_t mesure = data.st->value;
     
     //route is still in use
     insert_route(&routes, addr, *from);
     
     switch(msg) {
-        case DATA:
-            printf("DATA received from %d.%d\n", from->u8[0], from->u8[1]);
+        case TEMPERATURE:
+            printf("TEMPERATURE received from %d.%d : '%d.%d -> %d\n", from->u8[0], from->u8[1], addr.u8[0], addr.u8[1], mesure);
             
-            // TODO process data
+            // TODO process temperature
+            break;
+        case HUMIDITY:
+            printf("HUMIDITY received from %d.%d : '%d.%d -> %d\n", from->u8[0], from->u8[1], addr.u8[0], addr.u8[1], mesure);
+            
+            // TODO process humidity
             break;
         default:
             printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
