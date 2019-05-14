@@ -7,8 +7,7 @@
 
 #include "discovery-message.h"
 #include "maintenance-message.h"
-#include "managment-message.h"
-#include "data-message.h"
+#include "sensor-message.h"
 #include "routing-table.h"
 
 // maximum weight
@@ -21,18 +20,25 @@
 #define ROOT_CHECK 2
 
 //maintenance
-#define KEEP_ALIVE 3
-#define ROUTE 4
-#define ROUTE_ACK 5
-#define ROUTE_WITHDRAW 6
+#define KEEP_ALIVE 0
+#define ROUTE 1
+#define ROUTE_ACK 2
+#define ROUTE_WITHDRAW 3
 
-//managment
-#define SUBSCRIBE 7
-#define UNSUBSCRIBE 8
+//down data
+#define PERIODIC_SEND 0
+#define ON_CHANGE_SEND 1
+#define DONT_SEND 2
 
-//data
-#define TEMPERATURE 9
-#define HUMIDITY 10
+//up data
+#define TEMPERATURE 0
+#define HUMIDITY 1
+
+//ack
+#define ACK 1
+
+// !! can not exceed 16 (max seqnum is 15)
+#define SENDING_QUEUE_SIZE 16
 
 //timeout (seconds)
 /*
@@ -41,6 +47,7 @@
  */
 #define WELCOME_D 1
 #define ROOT_CHECK_D 60
+#define DATA_D 5
 
 /*---------------------------------------------------------------------------*/
 PROCESS(node_tree, "Routing tree discovery");
@@ -60,9 +67,6 @@ static struct ctimer root_checkt;
 
 static struct broadcast_conn discovery_broadcast;
 static struct unicast_conn maintenance_unicast;
-
-static struct runicast_conn managment_runicast;
-static struct runicast_conn data_runicast;
 
 /*---------------------------------------------------------------------------*/
 
@@ -131,13 +135,13 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
 		case ROUTE_WITHDRAW:
 		    if (debug_rcv) printf("ROUTE_WITHDRAW message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);			
 			route_t* route = search_route(&routes, addr);
-			// if route isn't in table or if route comes from sender
-			if (route == NULL || my_addr_cmp(route->nexthop, *from)) {
+			// if route is in table or if route comes from sender
+			if (route != NULL && my_addr_cmp(route->nexthop, *from) == 0) {
 			    delete_route(&routes, addr);
 			}
 		    break;
 		default:
-			printf("UNKOWN runicast message received from %d.%d: '%d'\n", u0, u1, msg);
+			printf("UNKOWN maintenance message received from %d.%d: '%d'\n", u0, u1, msg);
 			break;
 	}
 }
@@ -182,80 +186,91 @@ PROCESS_THREAD(node_tree, ev, data)
 
 	while(1) {
 
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); 
+        
 		etimer_restart(&et);
 	}
-
 	PROCESS_END();
 }
 
 /*---------------------------------------------------------------------------*/
-static void recv_managment(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
-{
-    manage_u message;
-    message.c = (char *) packetbuf_dataptr();
-    uint8_t msg = message.st->msg;
-    //rimeaddr_t addr = message.st->addr;
-    //uint8_t w = message.st->weight;
-    
-    switch(msg) {
-		default:
-			printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
-				from->u8[1], msg);
-			break;
-	}
-}
+/* DATA sharing                                                              */
+/*---------------------------------------------------------------------------*/
 
-static void recv_data(struct runicast_conn *c, const rimeaddr_t *from, uint8_t seqno)
-{
-    data_u data;
-    data.c = (char*) packetbuf_dataptr();
-    uint8_t msg = data.st->msg;
-    rimeaddr_t addr = data.st->addr;
-    uint8_t mesure = data.st->value;
-    
-    //route is still in use
-    insert_route(&routes, addr, *from);
-    
-    switch(msg) {
-        case TEMPERATURE:
-            printf("TEMPERATURE received from %d.%d : '%d.%d -> %d\n", from->u8[0], from->u8[1], addr.u8[0], addr.u8[1], mesure);
-            
-            // TODO process temperature
-            break;
-        case HUMIDITY:
-            printf("HUMIDITY received from %d.%d : '%d.%d -> %d\n", from->u8[0], from->u8[1], addr.u8[0], addr.u8[1], mesure);
-            
-            // TODO process humidity
-            break;
-        default:
-            printf("UNKOWN runicast message received from %d.%d: '%d'\n", from->u8[0], 
-				from->u8[1], msg);
-            break;
+sensor_u* downs[SENDING_QUEUE_SIZE];
+uint8_t sending_cursor_down = 0;
+uint8_t receiving_cursor_down = 0;
+
+static struct ctimer downt;
+
+static struct unicast_conn sensor_up_unicast;
+static struct unicast_conn sensor_down_unicast;
+
+/*---------------------------------------------------------------------------*/
+
+void send_down(void* ptr) {
+    sensor_u* d = downs[sending_cursor_down];
+    uint8_t cnt = 0;
+    while (d == NULL && cnt < SENDING_QUEUE_SIZE) { 
+        sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
+        d = downs[sending_cursor_down];
+        cnt++;
     }
+    if (d != NULL) {
+        route_t* r = search_route(&routes, d->st->addr);
+        if (r != NULL) {
+            send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
+        }
+    }
+    
+    ctimer_restart(&downt);
 }
 
-static void sent(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions) {}
+void add_down(uint8_t message, rimeaddr_t addr) {
+    sensor_u* d = downs[receiving_cursor_down];
+    if (d != NULL) free_sensor_message(d);
+    downs[receiving_cursor_down] = create_sensor_message(message, 0, receiving_cursor_down, addr, 0);
+    receiving_cursor_down = (receiving_cursor_down + 1) % SENDING_QUEUE_SIZE;
+}
 
-static void timedout(struct runicast_conn *c, const rimeaddr_t *to, uint8_t retransmissions)
+void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr) {
+    sensor_u* d = downs[seqnum];
+    if (d != NULL && get_msg(d) == msg && my_addr_cmp(d->st->addr, addr) == 0) free_sensor_message(d);
+    downs[seqnum] = NULL;
+}
+
+/*---------------------------------------------------------------------------*/
+static void recv_down(struct unicast_conn *c, const rimeaddr_t *from) {}
+
+static void recv_up(struct unicast_conn *c, const rimeaddr_t *from)
 {
-	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n",
-		to->u8[0], to->u8[1], retransmissions);
-
+    sensor_u message;
+    message.c = (char*) packetbuf_dataptr();
+    
+    uint8_t ack = get_ack(&message);
+    uint8_t seqnum = get_seqnum(&message);
+    uint8_t msg = get_msg(&message);
+    rimeaddr_t addr = message.st->addr;
+    
+    // if it is an ack, we remove the packet from our sending queue
+    if (ack) {
+        ack_down(seqnum, msg, addr);
+        return;
+    }
+    
+    // TODO process mesure received
+    printf("Received mesure from %d.%d : '%d' = %d\n", addr.u8[0], addr.u8[1], msg, message.st->value);
+    
+    // send ack
+    sensor_u* a = create_sensor_message(msg, ACK, seqnum, addr, 0);
+    send_sensor_message(&sensor_down_unicast, from, a);
+    free_sensor_message(a);
 }
 
-static const struct runicast_callbacks managment_callbacks = {
-	recv_managment,
-    sent,
-    timedout
-};
+static const struct unicast_callbacks sensor_down_callbacks = {recv_down};
 
-static const struct runicast_callbacks data_callbacks = {
-    recv_data,
-    sent,
-    timedout
-};
+static const struct unicast_callbacks sensor_up_callbacks = {recv_up};
+
 
 /*---------------------------------------------------------------------------*/
 
@@ -264,15 +279,16 @@ PROCESS_THREAD(node_data, ev, data)
 	static struct etimer et;
 	
 	PROCESS_EXITHANDLER(
-		runicast_close(&managment_runicast);
-		runicast_close(&data_runicast);
+		unicast_close(&sensor_up_unicast);
+		unicast_close(&sensor_down_unicast);
 	)
 
 	PROCESS_BEGIN();
 
-	runicast_open(&managment_runicast, 162, &managment_callbacks);
-	runicast_open(&data_runicast, 173, &data_callbacks);
+	unicast_open(&sensor_up_unicast, 162, &sensor_up_callbacks);
+	unicast_open(&sensor_down_unicast, 173, &sensor_down_callbacks);
 	
+	ctimer_set(&downt, DATA_D * CLOCK_SECOND, send_down, NULL);
 	etimer_set(&et, CLOCK_SECOND);
 
 	while(1) {

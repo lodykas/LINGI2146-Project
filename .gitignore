@@ -9,16 +9,12 @@ root/*
 !root/root.c
 !root/routing-table.h
 !root/routing-table.c
-!root/data-message.h
-!root/data-message.c
 !root/discovery-message.h
 !root/discovery-message.c
 !root/maintenance-message.h
 !root/maintenance-message.c
-!root/route-message.h
-!root/route-message.c
-!root/managment-message.h
-!root/managment-message.c
+!node/sensor-message.h
+!node/sensor-message.c
 !root/Makefile
 !root/Makefile.target
 
@@ -27,18 +23,14 @@ node/*
 !node/node.c
 !node/routing-table.h
 !node/routing-table.c
-!node/data-message.h
-!node/data-message.c
 !node/discovery-message.h
 !node/discovery-message.c
 !node/maintenance-message.h
 !node/maintenance-message.c
-!node/route-message.h
-!node/route-message.c
-!node/managment-message.h
-!node/managment-message.c
 !node/sensor-data.h
 !node/sensor-data.c
+!node/sensor-message.h
+!node/sensor-message.c
 !node/Makefile
 !node/Makefile.target
 
