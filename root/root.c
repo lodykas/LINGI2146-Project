@@ -121,7 +121,7 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
             if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 			break;
 		case ROUTE:
-			if (debug_rcv) printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
+			/*if (debug_rcv)*/ printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
 			insert_route(&routes, addr, *from);
 			// send route ack
 			maintenance_u* ack = create_maintenance_message(ROUTE_ACK, addr, 0);
@@ -221,6 +221,7 @@ void send_down(void* ptr) {
         if (r != NULL) {
             send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
         }
+        sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
     }
     
     ctimer_restart(&downt);

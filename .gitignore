@@ -23,10 +23,16 @@ node/*
 !node/node.c
 !node/routing-table.h
 !node/routing-table.c
+!node/discovery.h
+!node/discovery.c
 !node/discovery-message.h
 !node/discovery-message.c
+!node/maintenance.h
+!node/maintenance.c
 !node/maintenance-message.h
 !node/maintenance-message.c
+!node/data.h
+!node/data.c
 !node/sensor-data.h
 !node/sensor-data.c
 !node/sensor-message.h
