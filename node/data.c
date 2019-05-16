@@ -28,8 +28,8 @@ void send_up(void* ptr) {
             d = ups[sending_cursor_up];
             cnt++;
         }
-        if (d != NULL) send_sensor_message(&sensor_up_unicast, &parent, d);
         sending_cursor_up = (sending_cursor_up + 1) % SENDING_QUEUE_SIZE;
+        if (d != NULL) send_sensor_message(&sensor_up_unicast, &parent, d);
     }
     
     ctimer_restart(&upt);
@@ -44,7 +44,7 @@ void add_up(uint8_t message, rimeaddr_t addr, uint8_t value) {
 
 void ack_up(uint8_t seqnum, uint8_t msg, rimeaddr_t addr) {
     sensor_u* d = ups[seqnum];
-    if (d != NULL && get_msg(d) == msg && my_addr_cmp(d->st->addr, addr) == 0) free_sensor_message(d);
+    if (d != NULL && get_msg(d) == msg && rimeaddr_cmp(&d->st->addr, &addr) == 0) free_sensor_message(d);
     ups[seqnum] = NULL;
 }
 /*---------------------------------------------------------------------------*/
@@ -57,8 +57,9 @@ void send_down(void* ptr) {
             d = downs[sending_cursor_down];
             cnt++;
         }
+        sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
         if (d != NULL) {
-            route_t* r = search_route(&routes, d->st->addr);
+            route_t* r = search_route(d->st->addr);
             if (r != NULL) {
                 send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
             } else {
@@ -68,7 +69,6 @@ void send_down(void* ptr) {
 	            free_maintenance_message(withdraw);
             }
         }
-        sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
     } 
     
     ctimer_restart(&downt);
@@ -83,7 +83,7 @@ void add_down(uint8_t message, rimeaddr_t addr) {
 
 void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr) {
     sensor_u* d = downs[seqnum];
-    if (d != NULL && get_msg(d) == msg && my_addr_cmp(d->st->addr, addr) == 0) free_sensor_message(d);
+    if (d != NULL && get_msg(d) == msg && rimeaddr_cmp(&d->st->addr, &addr)) free_sensor_message(d);
     downs[seqnum] = NULL;
 }
 
@@ -98,7 +98,7 @@ void recv_down(struct unicast_conn *c, const rimeaddr_t *from) {
     uint8_t seqnum = get_seqnum(&message);
     
     // the message can only come from our parent
-    if (my_addr_cmp(parent, *from) == 0) {
+    if (rimeaddr_cmp(&parent, from)) {
         uint8_t w = message.st->value;
         parent_refresh(w);
     } else {
@@ -115,7 +115,7 @@ void recv_down(struct unicast_conn *c, const rimeaddr_t *from) {
     }
     
     // if the message isn't for us we transfer it
-    if (my_addr_cmp(addr, rimeaddr_node_addr) != 0) {
+    if (!rimeaddr_cmp(&addr, &rimeaddr_node_addr)) {
         add_down(msg, addr);
     } else {
         sensor_state = msg;
@@ -137,7 +137,10 @@ void recv_up(struct unicast_conn *c, const rimeaddr_t *from) {
     uint8_t seqnum = get_seqnum(&message);
     
     // the message can not come from our parent
-    if (my_addr_cmp(parent, *from) == 0) return;
+    if (rimeaddr_cmp(&parent, from)) return;
+    
+    // this child is still reachable
+    insert_route(*from, *from);
     
     uint8_t msg = get_msg(&message);
     rimeaddr_t addr = message.st->addr;

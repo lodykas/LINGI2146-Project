@@ -35,13 +35,13 @@ void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 	unsigned char u0 = from->u8[0];
 	unsigned char u1 = from->u8[1];
 	
-	uint8_t parent_cmp = my_addr_cmp(parent, *from);
+	uint8_t parent_cmp = rimeaddr_cmp(&parent, from);
 
 	switch(msg) {
 		case HELLO:
 			if (debug) printf("HELLO message received from %d.%d\n", u0, u1);
 			if (state == CONNECTED) {
-			    if (parent_cmp != 0) {
+			    if (!parent_cmp) {
 			        // send welcome
 			        if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 			    } else {
@@ -54,7 +54,7 @@ void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 			if (debug) printf("WELCOME message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (w < weight - 1) {
 		        choose_parent(*from, w);
-		    } else if (parent_cmp == 0) {
+		    } else if (parent_cmp) {
 		        parent_refresh(w);
 		    }
 		    break;
@@ -62,11 +62,11 @@ void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
 		    if (debug) printf("ROOT_CHECK message received from %d.%d: '%d'\n", u0, u1, w);
 		    if (w < weight - 1) {
 		        choose_parent(*from, w);
-		    } else if (parent_cmp == 0) {
+		    } else if (parent_cmp) {
 		        parent_refresh(w);
 		    }
 		    // broadcast root_check
-		    if (state == CONNECTED && parent_cmp == 0 && ctimer_expired(&root_checkt)) ctimer_restart(&root_checkt);
+		    if (state == CONNECTED && parent_cmp && ctimer_expired(&root_checkt)) ctimer_restart(&root_checkt);
 		    break;
 		default:
 			printf("UNKOWN discovery message received from %d.%d: '%d'\n", u0, u1, 

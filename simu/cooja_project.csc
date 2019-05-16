@@ -26,7 +26,7 @@
       <description>Z1 Mote Type #z11</description>
       <source EXPORT="discard">[CONFIG_DIR]/../root/root.c</source>
       <commands EXPORT="discard">make root.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">[CONFIG_DIR]/../root/root.z1</firmware>
+      <firmware EXPORT="copy">/home/user/Desktop/LINGI2146-Project/simu/../root/root.z1</firmware>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.IPAddress</moteinterface>
@@ -46,7 +46,7 @@
       <description>Z1 Mote Type #z12</description>
       <source EXPORT="discard">[CONFIG_DIR]/../node/node.c</source>
       <commands EXPORT="discard">make node.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">[CONFIG_DIR]/../node/node.z1</firmware>
+      <firmware EXPORT="copy">/home/user/Desktop/LINGI2146-Project/simu/../node/node.z1</firmware>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.IPAddress</moteinterface>
@@ -120,8 +120,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.701642141595</x>
-        <y>25.756351196242164</y>
+        <x>74.16999062038857</x>
+        <y>20.773434948750015</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -144,14 +144,70 @@
       </interface_config>
       <motetype_identifier>z12</motetype_identifier>
     </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>19.251707423883822</x>
+        <y>99.9624413629109</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>7</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>38.2424575537953</x>
+        <y>26.83355291609095</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>8</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>45.93640402301149</x>
+        <y>10.149645388694806</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>9</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        se.sics.cooja.interfaces.Position
+        <x>66.75498305825339</x>
+        <y>82.92401481864616</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        se.sics.cooja.mspmote.interfaces.MspMoteID
+        <id>10</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
   </simulation>
   <plugin>
     se.sics.cooja.plugins.SimControl
     <width>280</width>
     <z>0</z>
     <height>160</height>
-    <location_x>531</location_x>
-    <location_y>2</location_y>
+    <location_x>552</location_x>
+    <location_y>0</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.Visualizer
@@ -161,10 +217,10 @@
       <skin>se.sics.cooja.plugins.skins.TrafficVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.UDGMVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.AddressVisualizerSkin</skin>
-      <viewport>5.155989554700391 0.0 0.0 5.155989554700391 -85.417137288221 84.20052226498045</viewport>
+      <viewport>5.7755231904628275 0.0 0.0 5.7755231904628275 -83.37050086446456 60.0225447079233</viewport>
     </plugin_config>
-    <width>525</width>
-    <z>1</z>
+    <width>548</width>
+    <z>2</z>
     <height>811</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -177,7 +233,7 @@
       <coloring />
     </plugin_config>
     <width>1370</width>
-    <z>2</z>
+    <z>1</z>
     <height>651</height>
     <location_x>550</location_x>
     <location_y>160</location_y>
@@ -191,6 +247,10 @@
       <mote>3</mote>
       <mote>4</mote>
       <mote>5</mote>
+      <mote>6</mote>
+      <mote>7</mote>
+      <mote>8</mote>
+      <mote>9</mote>
       <showRadioRXTX />
       <showRadioHW />
       <showLEDs />

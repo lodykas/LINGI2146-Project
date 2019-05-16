@@ -59,9 +59,6 @@ AUTOSTART_PROCESSES(&node_tree, &node_data);
 uint8_t debug_rcv = 0;
 uint8_t debug_snd = 0;
 
-// global variables
-table_t routes;
-
 static struct ctimer welcomet;
 static struct ctimer root_checkt;
 
@@ -112,7 +109,7 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
 	unsigned char u0 = from->u8[0];
 	unsigned char u1 = from->u8[1];
     
-	insert_route(&routes, *from, *from);
+	insert_route(*from, *from);
     
     switch(msg) {
         case KEEP_ALIVE:
@@ -122,7 +119,7 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
 			break;
 		case ROUTE:
 			/*if (debug_rcv)*/ printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
-			insert_route(&routes, addr, *from);
+			insert_route(addr, *from);
 			// send route ack
 			maintenance_u* ack = create_maintenance_message(ROUTE_ACK, addr, 0);
 			send_maintenance_message(&maintenance_unicast, from, ack);
@@ -134,10 +131,10 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
 			break;
 		case ROUTE_WITHDRAW:
 		    if (debug_rcv) printf("ROUTE_WITHDRAW message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);			
-			route_t* route = search_route(&routes, addr);
+			route_t* route = search_route(addr);
 			// if route is in table or if route comes from sender
-			if (route != NULL && my_addr_cmp(route->nexthop, *from) == 0) {
-			    delete_route(&routes, addr);
+			if (route != NULL && !rimeaddr_cmp(&route->nexthop, from)) {
+			    delete_route((void*) route);
 			}
 		    break;
 		default:
@@ -217,7 +214,7 @@ void send_down(void* ptr) {
         cnt++;
     }
     if (d != NULL) {
-        route_t* r = search_route(&routes, d->st->addr);
+        route_t* r = search_route(d->st->addr);
         if (r != NULL) {
             send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
         }
@@ -236,7 +233,7 @@ void add_down(uint8_t message, rimeaddr_t addr) {
 
 void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr) {
     sensor_u* d = downs[seqnum];
-    if (d != NULL && get_msg(d) == msg && my_addr_cmp(d->st->addr, addr) == 0) free_sensor_message(d);
+    if (d != NULL && get_msg(d) == msg && !rimeaddr_cmp(&d->st->addr, &addr)) free_sensor_message(d);
     downs[seqnum] = NULL;
 }
 

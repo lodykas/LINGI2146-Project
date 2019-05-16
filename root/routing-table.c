@@ -1,137 +1,69 @@
 #include "routing-table.h"
 
-/*----- Table managment -----------------------------------------------------*/
-route_t* create_route(rimeaddr_t addr, rimeaddr_t nexthop) {
-	route_t* new_route = (route_t*) malloc(sizeof(route_t));
-	if (new_route == NULL) return NULL;
-	new_route->addr = addr;
-	new_route->nexthop = nexthop;
-	timer_set(&(new_route->sharet), 0);
-	timer_set(&(new_route->expiret), delay_expire);
-	new_route->next = NULL;
-	return new_route;
-}
+LIST(routing_table);
+MEMB(routing_mem, route_t, MAX_ROUTES);
 
-int my_addr_cmp(rimeaddr_t a1, rimeaddr_t a2) {
-	return ((int)(a1.u8[0]) - (int)(a2.u8[0])) * 256 + 
-		((int)(a1.u8[1]) - (int)(a2.u8[1]));
-}
-
-// update timestamp update
-void insert_route(table_t* table, rimeaddr_t addr, rimeaddr_t nexthop) {
-	route_t* previous = NULL;
-	route_t* next = table->first;
-	while (next != NULL) {
-		int cmp = my_addr_cmp(addr, next->addr);
-		if (cmp == 0) {
-			next->nexthop = nexthop;
-			timer_restart(&(next->expiret));
-			return;
-		} else if (cmp < 0) {
-			route_t* new_route = create_route(addr, nexthop);
-			new_route->next = next;
-			if (previous == NULL) table->first = new_route;
-			else previous->next = new_route;
-			table->size++;
-			return;
-		}
-	
-		previous = next;
-		next = previous->next;
-	}
-	
-	route_t* new_route = create_route(addr, nexthop);
-	if (previous == NULL) table->first = new_route;
-	else previous->next = new_route;
-	table->size++;
-}
-
-void delete_route(table_t* table, rimeaddr_t addr) {
-	route_t* previous = NULL;
-	route_t* next = table->first;
-	while (next != NULL) {
-		int cmp = my_addr_cmp(addr, next->addr);
-		if (cmp == 0) {
-			if (previous == NULL) table->first = next->next;
-			else previous->next = next->next;
-			free(next);
-			table->size--;
-			return;
-		} else if (cmp < 0) {
-			return;
-		}
-	
-		previous = next;
-		next = previous->next;
-	}
-}
-
-route_t* search_route(table_t* table, rimeaddr_t addr) {
-	route_t* previous = NULL;
-	route_t* next = table->first;
-	while (next != NULL) {
-		int cmp = my_addr_cmp(addr, next->addr);
-		if (cmp == 0) {
-			return next;
-		} else if (cmp < 0) {
-			return NULL;
-		}
-	
-		previous = next;
-		next = previous->next;
-	}
-	
-	return NULL;
-}
-
-// update timestamp shared
-void route_shared(table_t* table, rimeaddr_t addr) {
-    route_t* route = search_route(table, addr);
-    if (route != NULL) timer_set(&(route->sharet), delay_share);
-}
-
-// tenir compte des timestamp shared and update
-route_t* next_route(table_t* table) {
-	route_t* previous = NULL;
-	route_t* next = table->first;
-	while (next != NULL) {
-	    if (timer_expired(&(next->expiret))) {
-	        if (my_addr_cmp(rimeaddr_node_addr, next->addr) == 0) {
-	            timer_restart(&(next->expiret));
-	        } else {
-	            printf("Route expired : %d.%d\n", next->addr.u8[0], next->addr.u8[1]);
-	            if (previous == NULL) table->first = next->next;
-			    else previous->next = next->next;
-			    free(next);
-			    table->size--;
-			}
-	    } else if (timer_expired(&(next->sharet))) {
-	        return next;
+void insert_route(rimeaddr_t addr, rimeaddr_t nexthop) {
+	route_t* r;
+	for (r = list_head(routing_table); r != NULL; r = r->next) {
+	    if (rimeaddr_cmp(&addr, &r->addr)) {
+	        r->nexthop = nexthop;
+	        ctimer_restart(&r->expiret);
+	        return;
 	    }
-		previous = next;
-		next = previous->next;
+	}
+	
+	r = memb_alloc(&routing_mem);
+	if (r != NULL) {
+	    r->addr = addr;
+	    r->nexthop = nexthop;
+	    timer_set(&r->sharet, 0);
+	    ctimer_set(&r->expiret, EXPIRE_D, delete_route, r);
+	    
+	    list_add(routing_table, r);
+	}
+}
+
+void delete_route(void* ptr) {
+	route_t* r = ptr;
+	printf("Route expired %d.%d (%d.%d)\n", r->addr.u8[0], r->addr.u8[1], 
+	    r->nexthop.u8[0], r->nexthop.u8[1]);
+	
+	list_remove(routing_table, r);
+	memb_free(&routing_mem, r);
+}
+
+route_t* search_route(rimeaddr_t addr) {
+	route_t* r;
+	for (r = list_head(routing_table); r != NULL; r = r->next) {
+	    if (rimeaddr_cmp(&addr, &r->addr)) return r;
 	}
 	
 	return NULL;
 }
 
-// reset timestamp shared
-void reset_routes(table_t* table) {
-	route_t* previous = NULL;
-	route_t* next = table->first;
-	while (next != NULL) {
-		timer_set(&(next->sharet), 0);
-		previous = next;
-		next = previous->next;
+void route_shared(rimeaddr_t addr) {
+    route_t* route = search_route(addr);
+    if (route != NULL) timer_set(&route->sharet, SHARE_D);
+}
+
+rimeaddr_t next_route() {
+	route_t* r;
+	for (r = list_head(routing_table); r != NULL; r = r->next) {
+	    if (timer_expired(&r->sharet)) return r->addr;
+	}
+	
+	return rimeaddr_node_addr;
+}
+
+void reset_routes() {
+	route_t* r;
+	for (r = list_head(routing_table); r != NULL; r = r->next) {
+	    timer_restart(&r->sharet);
+	    ctimer_restart(&r->expiret);
 	}
 }
 
-void flush_table(table_t* table) {
-    route_t* next = table->first;
-    while (next != NULL) {
-        route_t* nextnext = next->next;
-        free(next);
-        next = nextnext;
-    }
-    table->size = 0;
+void flush_table() {
+    while (list_pop(routing_table) != NULL);
 }
