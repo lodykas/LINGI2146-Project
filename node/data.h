@@ -1,7 +1,6 @@
 #include "contiki.h"
 #include "net/rime.h"
 #include "random.h"
-#include "pt-sem.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,8 +26,6 @@
 #define DATA_D_MAX 10
 
 /* up = toward parent, from children */
-struct pt_sem mutex_up;
-struct ctimer upt;
 struct unicast_conn sensor_up_unicast;
 
 sensor_u* ups[SENDING_QUEUE_SIZE];
@@ -36,8 +33,6 @@ uint8_t sending_cursor_up;
 uint8_t receiving_cursor_up;
 
 /* down = from parent, to children */
-struct pt_sem mutex_down;
-struct ctimer downt;
 struct unicast_conn sensor_down_unicast;
 
 sensor_u* downs[SENDING_QUEUE_SIZE];

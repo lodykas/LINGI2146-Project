@@ -26,7 +26,7 @@
       <description>Z1 Mote Type #z11</description>
       <source EXPORT="discard">[CONFIG_DIR]/../root/root.c</source>
       <commands EXPORT="discard">make root.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">/home/user/Desktop/LINGI2146-Project/simu/../root/root.z1</firmware>
+      <firmware EXPORT="copy">[CONFIG_DIR]/../root/root.z1</firmware>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.IPAddress</moteinterface>
@@ -46,7 +46,7 @@
       <description>Z1 Mote Type #z12</description>
       <source EXPORT="discard">[CONFIG_DIR]/../node/node.c</source>
       <commands EXPORT="discard">make node.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">/home/user/Desktop/LINGI2146-Project/simu/../node/node.z1</firmware>
+      <firmware EXPORT="copy">[CONFIG_DIR]/../node/node.z1</firmware>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.IPAddress</moteinterface>

@@ -30,7 +30,13 @@ void send_up(void* ptr) {
         }
         sending_cursor_up = (sending_cursor_up + 1) % SENDING_QUEUE_SIZE;
         if (d != NULL) send_sensor_message(&sensor_up_unicast, &parent, d);
-    }
+	    
+	    if (weight < MAX_WEIGHT) {
+	        int send_delay = delay(DATA_D_MIN, DATA_D_MAX);
+	        ctimer_set(&upt, send_delay + weight * CLOCK_SECOND, send_up, NULL);
+	        return;
+	    }
+    } 
     
     ctimer_restart(&upt);
 }
