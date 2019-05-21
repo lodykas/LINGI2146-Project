@@ -40,6 +40,10 @@ node/*
 !node/Makefile
 !node/Makefile.target
 
+!gateway/
+gateway/*
+!main.cpp
+
 !simu/
 simu/*
 !simu/cooja_project.csc
