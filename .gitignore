@@ -6,39 +6,17 @@
 
 !root/
 root/*
-!root/root.c
-!root/routing-table.h
-!root/routing-table.c
-!root/discovery-message.h
-!root/discovery-message.c
-!root/maintenance-message.h
-!root/maintenance-message.c
-!root/sensor-message.h
-!root/sensor-message.c
-!root/Makefile
-!root/Makefile.target
+!root/*.c
+!root/*.h
+root/symbols.c
+root/symbols.h
 
 !node/
 node/*
-!node/node.c
-!node/routing-table.h
-!node/routing-table.c
-!node/discovery.h
-!node/discovery.c
-!node/discovery-message.h
-!node/discovery-message.c
-!node/maintenance.h
-!node/maintenance.c
-!node/maintenance-message.h
-!node/maintenance-message.c
-!node/data.h
-!node/data.c
-!node/sensor-data.h
-!node/sensor-data.c
-!node/sensor-message.h
-!node/sensor-message.c
-!node/Makefile
-!node/Makefile.target
+!node/*.c
+!node/*.h
+node/symbols.c
+node/symbols.h
 
 !gateway/
 gateway/*
