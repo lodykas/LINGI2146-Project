@@ -13,8 +13,8 @@ root/*
 !root/discovery-message.c
 !root/maintenance-message.h
 !root/maintenance-message.c
-!node/sensor-message.h
-!node/sensor-message.c
+!root/sensor-message.h
+!root/sensor-message.c
 !root/Makefile
 !root/Makefile.target
 
