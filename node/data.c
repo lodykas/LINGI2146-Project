@@ -124,6 +124,7 @@ void recv_down(struct unicast_conn *c, const rimeaddr_t *from) {
     if (!rimeaddr_cmp(&addr, &rimeaddr_node_addr)) {
         add_down(msg, addr);
     } else {
+        printf("New sensor state : %d\n", msg);
         sensor_state = msg;
     }
     

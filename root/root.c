@@ -1,9 +1,11 @@
 #include "contiki.h"
 #include "net/rime.h"
 #include "random.h"
+#include "dev/serial-line.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "discovery-message.h"
 #include "maintenance-message.h"
@@ -118,7 +120,7 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
             if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
 			break;
 		case ROUTE:
-			/*if (debug_rcv)*/ printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
+			if (debug_rcv) printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
 			insert_route(addr, *from);
 			// send route ack
 			maintenance_u* ack = create_maintenance_message(ROUTE_ACK, addr, 0);
@@ -217,9 +219,13 @@ void send_down(void* ptr) {
         route_t* r = search_route(d->st->addr);
         if (r != NULL) {
             send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
+        } else {
+            free_sensor_message(d);
+            downs[sending_cursor_down] = NULL;
         }
         sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
     }
+    
     
     ctimer_restart(&downt);
 }
@@ -250,14 +256,20 @@ static void recv_up(struct unicast_conn *c, const rimeaddr_t *from)
     uint8_t msg = get_msg(&message);
     rimeaddr_t addr = message.st->addr;
     
+    // this child is still reachable
+    insert_route(*from, *from);
+    
     // if it is an ack, we remove the packet from our sending queue
     if (ack) {
         ack_down(seqnum, msg, addr);
         return;
     }
     
-    // TODO process mesure received
-    printf("Received mesure from %d.%d : '%d' = %d\n", addr.u8[0], addr.u8[1], msg, message.st->value);
+    // process mesure received
+    char* s = "";
+    if (msg == TEMPERATURE) s = "temperature";
+    else if (msg == HUMIDITY) s = "humidity";
+    printf("/%d.%d/%s %d\n", addr.u8[0], addr.u8[1], s, message.st->value);
     
     // send ack
     sensor_u* a = create_sensor_message(msg, ACK, seqnum, addr, 0);
@@ -272,10 +284,27 @@ static const struct unicast_callbacks sensor_up_callbacks = {recv_up};
 
 /*---------------------------------------------------------------------------*/
 
+rimeaddr_t readaddr(char* s, int offset) {
+    rimeaddr_t addr;
+    int i;
+    int pos = offset;
+    for (i = 0; i < 2; i++) {
+        addr.u8[i] = 0;
+        for (; s[pos] != '.'; pos++) {
+            if (s[pos] == '\0') return addr;
+            char nbr[2];
+            nbr[0] = s[pos];
+            nbr[1] = '\0';
+            addr.u8[i] = addr.u8[i] * 10 + atoi(nbr);
+        }
+        pos++;
+    }
+    return addr;
+}
+
 PROCESS_THREAD(node_data, ev, data)
 {
-	static struct etimer et;
-	
+
 	PROCESS_EXITHANDLER(
 		unicast_close(&sensor_up_unicast);
 		unicast_close(&sensor_down_unicast);
@@ -287,13 +316,46 @@ PROCESS_THREAD(node_data, ev, data)
 	unicast_open(&sensor_down_unicast, 173, &sensor_down_callbacks);
 	
 	ctimer_set(&downt, DATA_D * CLOCK_SECOND, send_down, NULL);
-	etimer_set(&et, CLOCK_SECOND);
+		
+	char* table = "TABLE";
+	char* route = "ROUTE";
+	char* periodic = "DATA-PER";
+	char* onchange = "DATA-ONC";
+	char* never = "DATA-NEV";
 
 	while(1) {
-
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 		
-		etimer_restart(&et);
+		PROCESS_YIELD();
+		
+		if (ev == serial_line_event_message) {
+		
+	        char* s = (char*) data;
+	
+		    if (strncmp(s, table, 5) == 0) {
+		        printf("Routing table contains %d entries\n", table_size());
+		    } else if (strncmp(s, route, 5) == 0) {
+		        rimeaddr_t addr = readaddr(s, 6);
+		        route_t* r = search_route(addr);
+		        if (r != NULL)
+		            printf("Nexthop toward %d.%d is %d.%d\n", addr.u8[0], addr.u8[1], r->nexthop.u8[0], r->nexthop.u8[1]);
+		        else 
+		            printf("No route to %d.%d\n", addr.u8[0], addr.u8[1]);
+		    } else if (strncmp(s, never, 8) == 0) {
+		        rimeaddr_t addr = readaddr(s, 9);
+		        printf("Who shouldn't send anymore? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+		        add_down(DONT_SEND, addr);
+		    } else if (strncmp(s, periodic, 8) == 0) {
+		        rimeaddr_t addr = readaddr(s, 9);
+		        printf("Who should send periodically? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+		        add_down(PERIODIC_SEND, addr);
+		    } else if (strncmp(s, onchange, 8) == 0) {
+		        rimeaddr_t addr = readaddr(s, 9);
+		        printf("Who should send on change? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+		        add_down(ON_CHANGE_SEND, addr);
+		    } else 
+		        printf("Unknown message received on stdin : '%s'\n", s);
+		}
+		
 	}
 
 	PROCESS_END();

@@ -67,3 +67,7 @@ void reset_routes() {
 void flush_table() {
     while (list_pop(routing_table) != NULL);
 }
+
+int table_size() {
+    return list_length(routing_table);
+}
