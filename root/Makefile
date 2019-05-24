@@ -4,5 +4,5 @@ all: $(CONTIKI_PROJECT)
 
 #UIP_CONF_IPV6=1
 
-CONTIKI = ../../../home/user/contiki
+CONTIKI = ../../../contiki
 include $(CONTIKI)/Makefile.include
