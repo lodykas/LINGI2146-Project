@@ -7,7 +7,8 @@
 
 #define SENSOR_D 63
 
-struct sensor_data_struct {
+struct sensor_data_struct
+{
     uint8_t last_value;
     uint8_t center;
     uint8_t range;

@@ -44,12 +44,12 @@
 
 //timeout (seconds)
 /*
- * 
- * 
+ *
+ *
  */
 #define WELCOME_D 1
 #define ROOT_CHECK_D 60
-#define DATA_D 5
+#define DATA_D 2
 
 /*---------------------------------------------------------------------------*/
 PROCESS(node_tree, "Routing tree discovery");
@@ -69,33 +69,39 @@ static struct unicast_conn maintenance_unicast;
 
 /*---------------------------------------------------------------------------*/
 
-static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from) {
-	discovery_u message;
-	message.c = (char*) packetbuf_dataptr();
-	uint8_t msg = message.st->msg;
-	//uint8_t w = message.st->msg;
-	unsigned char u0 = from->u8[0];
-	unsigned char u1 = from->u8[1];
+static void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from)
+{
+    discovery_u message;
+    message.c = (char*) packetbuf_dataptr();
+    uint8_t msg = message.st->msg;
+    //uint8_t w = message.st->msg;
+    unsigned char u0 = from->u8[0];
+    unsigned char u1 = from->u8[1];
 
-	switch(msg) {
-		case HELLO:
-			if (debug_rcv) printf("HELLO message received from %d.%d\n", u0, u1);
-		    // send welcome
-		    if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
-			break;
-		case WELCOME:
-			if (debug_rcv) printf("WELCOME message received from %d.%d\n", u0, u1);
-			// do nothing
-			break;
-		case ROOT_CHECK:
-			if (debug_rcv) printf("ROOT_CHECK message received from %d.%d\n", u0, u1);
-			// do nothing
-			break;
-		default:
-			printf("UNKOWN broadcast message received from %d.%d: '%d'\n", u0, u1, 
-				msg);
-			break;
-	}
+    switch(msg)
+    {
+    case HELLO:
+        if (debug_rcv)
+            printf("HELLO message received from %d.%d\n", u0, u1);
+        // send welcome
+        if (ctimer_expired(&welcomet))
+            ctimer_restart(&welcomet);
+        break;
+    case WELCOME:
+        if (debug_rcv)
+            printf("WELCOME message received from %d.%d\n", u0, u1);
+        // do nothing
+        break;
+    case ROOT_CHECK:
+        if (debug_rcv)
+            printf("ROOT_CHECK message received from %d.%d\n", u0, u1);
+        // do nothing
+        break;
+    default:
+        printf("UNKOWN broadcast message received from %d.%d: '%d'\n", u0, u1,
+               msg);
+        break;
+    }
 }
 static const struct broadcast_callbacks discovery_callback = {discovery_recv};
 
@@ -108,88 +114,100 @@ static void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from)
     uint8_t msg = message.st->msg;
     rimeaddr_t addr = message.st->addr;
     uint8_t w = message.st->weight;
-	unsigned char u0 = from->u8[0];
-	unsigned char u1 = from->u8[1];
-    
-	insert_route(*from, *from);
-    
-    switch(msg) {
-        case KEEP_ALIVE:
-			if (debug_rcv) printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
-            // send welcome
-            if (ctimer_expired(&welcomet)) ctimer_restart(&welcomet);
-			break;
-		case ROUTE:
-			if (debug_rcv) printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
-			insert_route(addr, *from);
-			// send route ack
-			maintenance_u* ack = create_maintenance_message(ROUTE_ACK, addr, 0);
-			send_maintenance_message(&maintenance_unicast, from, ack);
-			free_maintenance_message(ack);
-			break;
-		case ROUTE_ACK:
-			if (debug_rcv) printf("ROUTE_ACK message received from %d.%d: '%d'\n", u0, u1, w);
-            // do nothing
-			break;
-		case ROUTE_WITHDRAW:
-		    if (debug_rcv) printf("ROUTE_WITHDRAW message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);			
-			route_t* route = search_route(addr);
-			// if route is in table or if route comes from sender
-			if (route != NULL && !rimeaddr_cmp(&route->nexthop, from)) {
-			    delete_route((void*) route);
-			}
-		    break;
-		default:
-			printf("UNKOWN maintenance message received from %d.%d: '%d'\n", u0, u1, msg);
-			break;
-	}
+    unsigned char u0 = from->u8[0];
+    unsigned char u1 = from->u8[1];
+
+    insert_route(*from, *from);
+
+    switch(msg)
+    {
+    case KEEP_ALIVE:
+        if (debug_rcv)
+            printf("KEEP_ALIVE message received from %d.%d: '%d'\n", u0, u1, w);
+        // send welcome
+        if (ctimer_expired(&welcomet))
+            ctimer_restart(&welcomet);
+        break;
+    case ROUTE:
+        if (debug_rcv)
+            printf("ROUTE message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
+        insert_route(addr, *from);
+        // send route ack
+        maintenance_u* ack = create_maintenance_message(ROUTE_ACK, addr, 0);
+        send_maintenance_message(&maintenance_unicast, from, ack);
+        free_maintenance_message(ack);
+        break;
+    case ROUTE_ACK:
+        if (debug_rcv)
+            printf("ROUTE_ACK message received from %d.%d: '%d'\n", u0, u1, w);
+        // do nothing
+        break;
+    case ROUTE_WITHDRAW:
+        if (debug_rcv)
+            printf("ROUTE_WITHDRAW message received from %d.%d: '%d.%d'\n", u0, u1, addr.u8[0], addr.u8[1]);
+        route_t* route = search_route(addr);
+        // if route is in table or if route comes from sender
+        if (route != NULL && !rimeaddr_cmp(&route->nexthop, from))
+        {
+            delete_route((void*) route);
+        }
+        break;
+    default:
+        printf("UNKOWN maintenance message received from %d.%d: '%d'\n", u0, u1, msg);
+        break;
+    }
 }
 static const struct unicast_callbacks maintenance_callback = {maintenance_recv};
 
 /*---------------------------------------------------------------------------*/
 
-void send_welcome(void* ptr) {
-    if (debug_snd) printf("Sending welcome...\n");
+void send_welcome(void* ptr)
+{
+    if (debug_snd)
+        printf("Sending welcome...\n");
     discovery_u* welcome = create_discovery_message(WELCOME, 0);
     send_discovery_message(&discovery_broadcast, welcome);
     free_discovery_message(welcome);
 }
 
-void send_root_check(void* ptr) {
-    if (debug_snd) printf("Sending root check...\n");
+void send_root_check(void* ptr)
+{
+    if (debug_snd)
+        printf("Sending root check...\n");
     discovery_u* root_check = create_discovery_message(ROOT_CHECK, 0);
     send_discovery_message(&discovery_broadcast, root_check);
     free_discovery_message(root_check);
-    
+
     ctimer_restart(&root_checkt);
 }
 
 PROCESS_THREAD(node_tree, ev, data)
 {
-	static struct etimer et;
-	
-	PROCESS_EXITHANDLER(
-		broadcast_close(&discovery_broadcast);
-		unicast_close(&maintenance_unicast);
-	)
+    static struct etimer et;
 
-	PROCESS_BEGIN();
+    PROCESS_EXITHANDLER(
+        broadcast_close(&discovery_broadcast);
+        unicast_close(&maintenance_unicast);
+    )
 
-	broadcast_open(&discovery_broadcast, 129, &discovery_callback);
-	unicast_open(&maintenance_unicast, 140, &maintenance_callback);
-	
-	ctimer_set(&welcomet, WELCOME_D * CLOCK_SECOND, send_welcome, NULL);
-	ctimer_set(&root_checkt, ROOT_CHECK_D * CLOCK_SECOND, send_root_check, NULL);
-	
-	etimer_set(&et, CLOCK_SECOND);
+    PROCESS_BEGIN();
 
-	while(1) {
+    broadcast_open(&discovery_broadcast, 129, &discovery_callback);
+    unicast_open(&maintenance_unicast, 140, &maintenance_callback);
 
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); 
-        
-		etimer_restart(&et);
-	}
-	PROCESS_END();
+    ctimer_set(&welcomet, WELCOME_D * CLOCK_SECOND, send_welcome, NULL);
+    ctimer_set(&root_checkt, ROOT_CHECK_D * CLOCK_SECOND, send_root_check, NULL);
+
+    etimer_set(&et, CLOCK_SECOND);
+
+    while(1)
+    {
+
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+        etimer_restart(&et);
+    }
+    PROCESS_END();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -207,39 +225,69 @@ static struct unicast_conn sensor_down_unicast;
 
 /*---------------------------------------------------------------------------*/
 
-void send_down(void* ptr) {
+void send_down(void* ptr)
+{
     sensor_u* d = downs[sending_cursor_down];
     uint8_t cnt = 0;
-    while (d == NULL && cnt < SENDING_QUEUE_SIZE) { 
+    while (d == NULL && cnt < SENDING_QUEUE_SIZE)
+    {
         sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
         d = downs[sending_cursor_down];
         cnt++;
     }
-    if (d != NULL) {
+    if (d != NULL)
+    {
         route_t* r = search_route(d->st->addr);
-        if (r != NULL) {
+        if (r != NULL)
+        {
             send_sensor_message(&sensor_down_unicast, &(r->nexthop), d);
-        } else {
-            free_sensor_message(d);
+        }
+        else
+        {
             downs[sending_cursor_down] = NULL;
+            free_sensor_message(d);
         }
         sending_cursor_down = (sending_cursor_down + 1) % SENDING_QUEUE_SIZE;
     }
-    
-    
+
     ctimer_restart(&downt);
 }
 
-void add_down(uint8_t message, rimeaddr_t addr) {
-    sensor_u* d = downs[receiving_cursor_down];
-    if (d != NULL) free_sensor_message(d);
-    downs[receiving_cursor_down] = create_sensor_message(message, 0, receiving_cursor_down, addr, 0);
+void add_down(uint8_t message, rimeaddr_t addr)
+{
+    // check if another message toward this node is already in the queue
+    int cnt;
+    int pos = 0;
+    for (cnt = 0; cnt < SENDING_QUEUE_SIZE; cnt++) 
+    {
+        uint8_t i = (receiving_cursor_down + cnt) % SENDING_QUEUE_SIZE;
+        sensor_u* d = downs[i];
+        if (d == NULL) // place available in sending queue
+            pos = cnt;
+        else if (rimeaddr_cmp(&addr, &d->st->addr)) // message toward the same node
+        {
+            downs[i] = create_sensor_message(message, 0, i, addr, 0);
+            free_sensor_message(d);
+            return;
+        }
+    }
+    
+    // otherwise we add it in the last free place (or at receiving_cursor_down)
+    uint8_t i = (receiving_cursor_down + pos) % SENDING_QUEUE_SIZE;
+    sensor_u* d = downs[i];
+    downs[i] = create_sensor_message(message, 0, i, addr, 0);
     receiving_cursor_down = (receiving_cursor_down + 1) % SENDING_QUEUE_SIZE;
+    
+    // there was another message in this place, we free it
+    if (d != NULL)
+        free_sensor_message(d);
 }
 
-void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr) {
+void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr)
+{
     sensor_u* d = downs[seqnum];
-    if (d != NULL && get_msg(d) == msg && !rimeaddr_cmp(&d->st->addr, &addr)) free_sensor_message(d);
+    if (d != NULL && get_msg(d) == msg && !rimeaddr_cmp(&d->st->addr, &addr))
+        free_sensor_message(d);
     downs[seqnum] = NULL;
 }
 
@@ -250,27 +298,30 @@ static void recv_up(struct unicast_conn *c, const rimeaddr_t *from)
 {
     sensor_u message;
     message.c = (char*) packetbuf_dataptr();
-    
+
     uint8_t ack = get_ack(&message);
     uint8_t seqnum = get_seqnum(&message);
     uint8_t msg = get_msg(&message);
     rimeaddr_t addr = message.st->addr;
-    
+
     // this child is still reachable
     insert_route(*from, *from);
-    
+
     // if it is an ack, we remove the packet from our sending queue
-    if (ack) {
+    if (ack)
+    {
         ack_down(seqnum, msg, addr);
         return;
     }
-    
+
     // process mesure received
     char* s = "";
-    if (msg == TEMPERATURE) s = "temperature";
-    else if (msg == HUMIDITY) s = "humidity";
+    if (msg == TEMPERATURE)
+        s = "temperature";
+    else if (msg == HUMIDITY)
+        s = "humidity";
     printf("/%d.%d/%s %d\n", addr.u8[0], addr.u8[1], s, message.st->value);
-    
+
     // send ack
     sensor_u* a = create_sensor_message(msg, ACK, seqnum, addr, 0);
     send_sensor_message(&sensor_down_unicast, from, a);
@@ -284,14 +335,18 @@ static const struct unicast_callbacks sensor_up_callbacks = {recv_up};
 
 /*---------------------------------------------------------------------------*/
 
-rimeaddr_t readaddr(char* s, int offset) {
+rimeaddr_t readaddr(char* s, int offset)
+{
     rimeaddr_t addr;
     int i;
     int pos = offset;
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 2; i++)
+    {
         addr.u8[i] = 0;
-        for (; s[pos] != '.'; pos++) {
-            if (s[pos] == '\0') return addr;
+        for (; s[pos] != '.'; pos++)
+        {
+            if (s[pos] == '\0')
+                return addr;
             char nbr[2];
             nbr[0] = s[pos];
             nbr[1] = '\0';
@@ -305,58 +360,76 @@ rimeaddr_t readaddr(char* s, int offset) {
 PROCESS_THREAD(node_data, ev, data)
 {
 
-	PROCESS_EXITHANDLER(
-		unicast_close(&sensor_up_unicast);
-		unicast_close(&sensor_down_unicast);
-	)
+    PROCESS_EXITHANDLER(
+        unicast_close(&sensor_up_unicast);
+        unicast_close(&sensor_down_unicast);
+    )
 
-	PROCESS_BEGIN();
+    PROCESS_BEGIN();
 
-	unicast_open(&sensor_up_unicast, 162, &sensor_up_callbacks);
-	unicast_open(&sensor_down_unicast, 173, &sensor_down_callbacks);
-	
-	ctimer_set(&downt, DATA_D * CLOCK_SECOND, send_down, NULL);
-		
-	char* table = "TABLE";
-	char* route = "ROUTE";
-	char* periodic = "DATA-PER";
-	char* onchange = "DATA-ONC";
-	char* never = "DATA-NEV";
+    unicast_open(&sensor_up_unicast, 162, &sensor_up_callbacks);
+    unicast_open(&sensor_down_unicast, 173, &sensor_down_callbacks);
 
-	while(1) {
-		
-		PROCESS_YIELD();
-		
-		if (ev == serial_line_event_message) {
-		
-	        char* s = (char*) data;
-	
-		    if (strncmp(s, table, 5) == 0) {
-		        printf("Routing table contains %d entries\n", table_size());
-		    } else if (strncmp(s, route, 5) == 0) {
-		        rimeaddr_t addr = readaddr(s, 6);
-		        route_t* r = search_route(addr);
-		        if (r != NULL)
-		            printf("Nexthop toward %d.%d is %d.%d\n", addr.u8[0], addr.u8[1], r->nexthop.u8[0], r->nexthop.u8[1]);
-		        else 
-		            printf("No route to %d.%d\n", addr.u8[0], addr.u8[1]);
-		    } else if (strncmp(s, never, 8) == 0) {
-		        rimeaddr_t addr = readaddr(s, 9);
-		        printf("Who shouldn't send anymore? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-		        add_down(DONT_SEND, addr);
-		    } else if (strncmp(s, periodic, 8) == 0) {
-		        rimeaddr_t addr = readaddr(s, 9);
-		        printf("Who should send periodically? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-		        add_down(PERIODIC_SEND, addr);
-		    } else if (strncmp(s, onchange, 8) == 0) {
-		        rimeaddr_t addr = readaddr(s, 9);
-		        printf("Who should send on change? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-		        add_down(ON_CHANGE_SEND, addr);
-		    } else 
-		        printf("Unknown message received on stdin : '%s'\n", s);
-		}
-		
-	}
+    ctimer_set(&downt, DATA_D * CLOCK_SECOND, send_down, NULL);
 
-	PROCESS_END();
+    char* table = "TABLE";
+    char* route = "ROUTE";
+    char* nodes = "NODES";
+    char* periodic = "DATA-PER";
+    char* onchange = "DATA-ONC";
+    char* never = "DATA-NEV";
+
+    while(1)
+    {
+
+        PROCESS_YIELD();
+
+        if (ev == serial_line_event_message)
+        {
+
+            char* s = (char*) data;
+
+            if (strncmp(s, table, 5) == 0)
+            {
+                printf("Routing table contains %d entries\n", table_size());
+            }
+            else if (strncmp(s, nodes, 5) == 0)
+            {
+                char s[521];
+                printf("%s\n", table_to_string(s));
+            }
+            else if (strncmp(s, route, 5) == 0)
+            {
+                rimeaddr_t addr = readaddr(s, 6);
+                route_t* r = search_route(addr);
+                if (r != NULL)
+                    printf("Nexthop toward %d.%d is %d.%d\n", addr.u8[0], addr.u8[1], r->nexthop.u8[0], r->nexthop.u8[1]);
+                else
+                    printf("No route to %d.%d\n", addr.u8[0], addr.u8[1]);
+            }
+            else if (strncmp(s, never, 8) == 0)
+            {
+                rimeaddr_t addr = readaddr(s, 9);
+                printf("Who shouldn't send anymore? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+                add_down(DONT_SEND, addr);
+            }
+            else if (strncmp(s, periodic, 8) == 0)
+            {
+                rimeaddr_t addr = readaddr(s, 9);
+                printf("Who should send periodically? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+                add_down(PERIODIC_SEND, addr);
+            }
+            else if (strncmp(s, onchange, 8) == 0)
+            {
+                rimeaddr_t addr = readaddr(s, 9);
+                printf("Who should send on change? -> %d.%d\n", addr.u8[0], addr.u8[1]);
+                add_down(ON_CHANGE_SEND, addr);
+            }
+            else
+                printf("Unknown message received on stdin : '%s'\n", s);
+        }
+
+    }
+
+    PROCESS_END();
 }

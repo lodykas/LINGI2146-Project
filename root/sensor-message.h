@@ -5,17 +5,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*----- Sensor message managment -----------------------------------------*/
-struct sensor_message_struct {
-	uint8_t msg;
-	rimeaddr_t addr;
-	uint8_t value;
+/*----- Sensor message management -----------------------------------------*/
+struct sensor_message_struct
+{
+    uint8_t msg;
+    rimeaddr_t addr;
+    uint8_t value;
 };
 typedef struct sensor_message_struct sensor_message_t;
 
-union sensor_union {
-	char* c;
-	sensor_message_t* st;
+union sensor_union
+{
+    char* c;
+    sensor_message_t* st;
 };
 typedef union sensor_union sensor_u;
 

@@ -12,16 +12,17 @@
 #define SHARE_D 600 * CLOCK_SECOND
 #define EXPIRE_D 1800 * CLOCK_SECOND
 
-struct route {
-	struct route* next;
-	rimeaddr_t addr;
-	rimeaddr_t nexthop;
-	struct timer sharet;
-	struct ctimer expiret;
+struct route
+{
+    struct route* next;
+    rimeaddr_t addr;
+    rimeaddr_t nexthop;
+    struct timer sharet;
+    struct ctimer expiret;
 };
 typedef struct route route_t;
 
-/*----- Table managment -----------------------------------------------------*/
+/*----- Table management -----------------------------------------------------*/
 route_t* create_route(rimeaddr_t addr, rimeaddr_t nexthop);
 
 void insert_route(rimeaddr_t addr, rimeaddr_t nexthop);

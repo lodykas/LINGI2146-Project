@@ -27,26 +27,26 @@ void open_discovery();
 void close_discovery();
 
 /**
- * Method automatically called when a broadcast message is received on the 
- * discovery channel.  Should process the message.
+ * Function automatically called when a broadcast message is received on the
+ * discovery channel. Should process the message.
  */
 void discovery_recv(struct broadcast_conn *c, const rimeaddr_t *from);
 
 static const struct broadcast_callbacks discovery_callback = {discovery_recv};
 
 /**
- * Method automatically called by the hello timer when the node is offline.
+ * Function automatically called by the hello timer when the node is offline.
  */
 void send_hello(void* ptr);
 
 /**
- * Method automatically called by the welcome timer when a welcome needs to be 
+ * Function automatically called by the welcome timer when a welcome needs to be
  * send
  */
 void send_welcome(void* ptr);
 
 /**
- * Method automatically called by the root_check timer when a root_check needs
+ * Function automatically called by the root_check timer when a root_check needs
  * to be send.
  */
 void send_root_check(void* ptr);

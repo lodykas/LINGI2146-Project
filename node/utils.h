@@ -12,7 +12,7 @@
 #define CONNECTED 1
 
 // maximum weight
-#define MAX_WEIGHT 255
+#define MAX_WEIGHT 64
 
 struct unicast_conn maintenance_unicast;
 
@@ -38,23 +38,23 @@ uint8_t sensor_state;
 rimeaddr_t parent;
 
 /**
- * This method should be called each time a node choose a new parent
+ * This function should be called each time a node choose a new parent
  */
 void choose_parent(rimeaddr_t addr, uint8_t w);
 
 /**
- * This method is automatically called by the online timer
+ * This function is automatically called by the online timer
  */
 void disconnect(void* ptr);
 
 /**
- * This method should be called each time we receive a message from our parent
+ * This function should be called each time we receive a message from our parent
  * and the weight shared by the parent should be given in argument
  */
 void parent_refresh(uint8_t w);
 
 /**
- * This method take two bounds and return a value between those two (converted 
+ * This function take two bounds and return a value between those two (converted
  * in clocks ticks), the address of the node will influence on this value
  */
 unsigned int delay(unsigned int min, unsigned int max);
