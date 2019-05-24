@@ -6,15 +6,17 @@
 #include <stdlib.h>
 
 /*----- Broadcast message management -----------------------------------------*/
-struct discovery_message {
+struct discovery_message
+{
     uint8_t msg;
     uint8_t weight;
 };
 typedef struct discovery_message discovery_message_t;
 
-union discovery_union {
-	char* c;
-	discovery_message_t* st;
+union discovery_union
+{
+    char* c;
+    discovery_message_t* st;
 };
 typedef union discovery_union discovery_u;
 

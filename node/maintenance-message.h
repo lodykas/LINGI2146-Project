@@ -6,16 +6,18 @@
 #include <stdlib.h>
 
 /*----- Broadcast message management -----------------------------------------*/
-struct maintenance_message_struct {
-	uint8_t msg;
-	rimeaddr_t addr;
-	uint8_t weight;
+struct maintenance_message_struct
+{
+    uint8_t msg;
+    rimeaddr_t addr;
+    uint8_t weight;
 };
 typedef struct maintenance_message_struct maintenance_message_t;
 
-union maintenance_union {
-	char* c;
-	maintenance_message_t* st;
+union maintenance_union
+{
+    char* c;
+    maintenance_message_t* st;
 };
 typedef union maintenance_union maintenance_u;
 
