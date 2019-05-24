@@ -16,4 +16,8 @@ client.subscribe(channel_prefix+"/7.0/temperature")
 client.subscribe(channel_prefix+"/8.0/temperature")
 client.subscribe(channel_prefix+"/9.0/temperature")
 
+client.publish(channel_prefix+"/subscription/5.0/temperature","subscribe") 
+client.publish(channel_prefix+"/subscription/6.0/temperature","subscribe") 
+client.publish(channel_prefix+"/subscription/7.0/temperature","subscribe") 
+client.publish(channel_prefix+"/subscription/8.0/temperature","subscribe") 
 client.loop_forever()

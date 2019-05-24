@@ -7,7 +7,7 @@ import sys
 
 broker = "127.0.0.1"
 port = 1234
-serialDevice = "/dev/pts/7"
+serialDevice = "/dev/pts/8"
 channel_prefix = "ME_34_DATA"
 
 subscribers = {}
@@ -36,7 +36,7 @@ def on_connect_callback(client, userdata, flags, rc):
 	print("Connected with result code "+str(rc))
 	client.subscribe("$SYS/broker/log/M/subscribe")
 	client.subscribe("$SYS/broker/log/M/unsubscribe")
-	client.subscribe(channel_prefix+"subscription/#")
+	client.subscribe(channel_prefix+"/subscription/#")
 
 #here we process the arrival/departure of subscribers to limit network usage
 def on_message_callback(client, userdata, message):
@@ -60,15 +60,17 @@ def on_message_callback(client, userdata, message):
 				p.stdin.write("DATA-NEV "+ parts[0])
 
 	#this is an active way of joining/leaving
-	elif channel_prefix+"subscription/" in message.topic:
-		channel = message.topic[len( channel_prefix+"subscription/"):]
+	elif channel_prefix+"/subscription/" in message.topic:
+		print("subscription")
+		channel = message.topic[len( channel_prefix+"/subscription/"):]
 		if(msg[0] == "subscribe"):
 			if channel in subscribers:
 				subscribers[channel]+=1
 			else:
 				subscribers[channel]=1
 			parts = channel.split('/')
-			p.stdin.write("DATA-PER "+ parts[0])
+			print("DATA-PER "+ parts[0])
+			p.stdin.write("DATA-PER "+ parts[0]+"\n")
 		elif(msg[0] == "unsubscribe"):
 			if channel in subscribers:
 				subscribers[channel]-=1
