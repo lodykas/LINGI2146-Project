@@ -40,8 +40,6 @@ void disconnect(void* ptr)
     ctimer_stop(&routet);
     ctimer_stop(&upt);
     ctimer_stop(&downt);
-
-    flush_table();
 }
 
 void parent_refresh(uint8_t w)
@@ -59,6 +57,6 @@ unsigned int delay(unsigned int min, unsigned int max)
     uint8_t u0 = rimeaddr_node_addr.u8[0];
     uint8_t u1 = rimeaddr_node_addr.u8[1];
     unsigned int var = ((u1 * CLOCK_SECOND) + u0 * 17 + u1);
-    return min * CLOCK_SECOND + var % ((max - min) * CLOCK_SECOND);
+    return min * CLOCK_SECOND + (var + random_rand()) % ((max - min) * CLOCK_SECOND);
 }
 

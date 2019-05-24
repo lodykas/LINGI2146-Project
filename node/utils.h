@@ -12,7 +12,7 @@
 #define CONNECTED 1
 
 // maximum weight
-#define MAX_WEIGHT 255
+#define MAX_WEIGHT 64
 
 struct unicast_conn maintenance_unicast;
 

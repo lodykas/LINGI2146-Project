@@ -88,3 +88,14 @@ int table_size()
 {
     return list_length(routing_table);
 }
+
+char* table_to_string(char s[])
+{
+    sprintf(s, "1.0");
+    route_t* r;
+    for (r = list_head(routing_table); r != NULL; r = r->next)
+    {
+        sprintf(s, "%s, %d.%d", s, r->addr.u8[0], r->addr.u8[1]);
+    }
+    return s;
+}

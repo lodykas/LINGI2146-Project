@@ -11,7 +11,7 @@ void data_open()
 
     int send_delay = delay(DATA_D_MIN, DATA_D_MAX);
     ctimer_set(&upt, send_delay, send_up, NULL);
-    ctimer_set(&downt, send_delay + send_delay / 2, send_down, NULL);
+    ctimer_set(&downt, send_delay / 2, send_down, NULL);
 }
 
 void data_close()
@@ -50,11 +50,32 @@ void send_up(void* ptr)
 
 void add_up(uint8_t message, rimeaddr_t addr, uint8_t value)
 {
-    sensor_u* d = ups[receiving_cursor_up];
+    // check if another message toward this node is already in the queue
+    int cnt;
+    int pos = 0;
+    for (cnt = 0; cnt < SENDING_QUEUE_SIZE; cnt++) 
+    {
+        uint8_t i = (receiving_cursor_up + cnt) % SENDING_QUEUE_SIZE;
+        sensor_u* d = ups[i];
+        if (d == NULL) // place available in sending queue
+            pos = cnt;
+        else if (rimeaddr_cmp(&addr, &d->st->addr) && message == get_msg(d)) 
+        { // message from the same node and for the same mesure
+            ups[i] = create_sensor_message(message, 0, i, addr, value);
+            free_sensor_message(d);
+            return;
+        }
+    }
+    
+    // otherwise we add it in the last free place (or at receiving_cursor_up)
+    uint8_t i = (receiving_cursor_up + pos) % SENDING_QUEUE_SIZE;
+    sensor_u* d = ups[i];
+    ups[i] = create_sensor_message(message, 0, i, addr, value);
+    receiving_cursor_up = (receiving_cursor_up + 1) % SENDING_QUEUE_SIZE;
+    
+    // there was another message in this place, we free it
     if (d != NULL)
         free_sensor_message(d);
-    ups[receiving_cursor_up] = create_sensor_message(message, 0, receiving_cursor_up, addr, value);
-    receiving_cursor_up = (receiving_cursor_up + 1) % SENDING_QUEUE_SIZE;
 }
 
 void ack_up(uint8_t seqnum, uint8_t msg, rimeaddr_t addr)
@@ -100,11 +121,32 @@ void send_down(void* ptr)
 
 void add_down(uint8_t message, rimeaddr_t addr)
 {
-    sensor_u* d = downs[receiving_cursor_down];
+    // check if another message toward this node is already in the queue
+    int cnt;
+    int pos = 0;
+    for (cnt = 0; cnt < SENDING_QUEUE_SIZE; cnt++) 
+    {
+        uint8_t i = (receiving_cursor_down + cnt) % SENDING_QUEUE_SIZE;
+        sensor_u* d = downs[i];
+        if (d == NULL) // place available in sending queue
+            pos = cnt;
+        else if (rimeaddr_cmp(&addr, &d->st->addr)) // message toward the same node
+        {
+            downs[i] = create_sensor_message(message, 0, i, addr, weight);
+            free_sensor_message(d);
+            return;
+        }
+    }
+    
+    // otherwise we add it in the last free place (or at receiving_cursor_down)
+    uint8_t i = (receiving_cursor_down + pos) % SENDING_QUEUE_SIZE;
+    sensor_u* d = downs[i];
+    downs[i] = create_sensor_message(message, 0, i, addr, weight);
+    receiving_cursor_down = (receiving_cursor_down + 1) % SENDING_QUEUE_SIZE;
+    
+    // there was another message in this place, we free it
     if (d != NULL)
         free_sensor_message(d);
-    downs[receiving_cursor_down] = create_sensor_message(message, 0, receiving_cursor_down, addr, weight);
-    receiving_cursor_down = (receiving_cursor_down + 1) % SENDING_QUEUE_SIZE;
 }
 
 void ack_down(uint8_t seqnum, uint8_t msg, rimeaddr_t addr)

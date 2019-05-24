@@ -6,6 +6,7 @@
   <project EXPORT="discard">[APPS_DIR]/serial_socket</project>
   <project EXPORT="discard">[APPS_DIR]/collect-view</project>
   <project EXPORT="discard">[APPS_DIR]/powertracker</project>
+  <project EXPORT="discard">[APPS_DIR]/serial2pty</project>
   <simulation>
     <title>Project</title>
     <randomseed>123456</randomseed>
@@ -220,7 +221,7 @@
       <viewport>5.7755231904628275 0.0 0.0 5.7755231904628275 -83.37050086446456 60.0225447079233</viewport>
     </plugin_config>
     <width>548</width>
-    <z>2</z>
+    <z>3</z>
     <height>811</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -257,10 +258,20 @@
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
     <width>1920</width>
-    <z>3</z>
+    <z>4</z>
     <height>167</height>
     <location_x>0</location_x>
     <location_y>813</location_y>
+  </plugin>
+  <plugin>
+    de.fau.cooja.plugins.Serial2Pty
+    <mote_arg>0</mote_arg>
+    <plugin_config />
+    <width>250</width>
+    <z>2</z>
+    <height>100</height>
+    <location_x>1147</location_x>
+    <location_y>15</location_y>
   </plugin>
 </simconf>
 

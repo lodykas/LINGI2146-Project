@@ -74,7 +74,7 @@ PROCESS_THREAD(node_data, ev, data)
 
     data_open();
 
-    sensor_state = ON_CHANGE_SEND;
+    sensor_state = DONT_SEND;
 
     etimer_set(&et, 2 * delay(DATA_D_MIN, DATA_D_MAX) + CLOCK_SECOND);
 
