@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*----- Broadcast message managment -----------------------------------------*/
+/*----- Broadcast message management -----------------------------------------*/
 struct maintenance_message_struct {
 	uint8_t msg;
 	rimeaddr_t addr;

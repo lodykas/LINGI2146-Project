@@ -18,7 +18,7 @@
 #define ROUTE_D_MAX 9
 
 /**
- * Open the maintenance unicast connection an initaite the timers related
+ * Open the maintenance unicast connection an initiate the timers related
  * Should be called a the beginning of the process
  */
 void open_maintenance();
@@ -37,13 +37,13 @@ void maintenance_recv(struct unicast_conn *c, const rimeaddr_t *from);
 static const struct unicast_callbacks maintenance_callback = {maintenance_recv};
 
 /**
- * Method automaticaly called periodically by the keep_alive timer, send a 
+ * Function automatically called periodically by the keep_alive timer, send a
  * keep_alive message to the parent
  */
 void send_keep_alive(void* ptr);
 
 /**
- * Method automaticaly called periodically by the route timer, send a route if
+ * Function automatically called periodically by the route timer, send a route if
  * any of the table should be shared
  */
 void send_route(void* ptr);

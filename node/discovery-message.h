@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*----- Broadcast message managment -----------------------------------------*/
+/*----- Broadcast message management -----------------------------------------*/
 struct discovery_message {
     uint8_t msg;
     uint8_t weight;

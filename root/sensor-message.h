@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*----- Sensor message managment -----------------------------------------*/
+/*----- Sensor message management -----------------------------------------*/
 struct sensor_message_struct {
 	uint8_t msg;
 	rimeaddr_t addr;

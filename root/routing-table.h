@@ -21,7 +21,7 @@ struct route {
 };
 typedef struct route route_t;
 
-/*----- Table managment -----------------------------------------------------*/
+/*----- Table management -----------------------------------------------------*/
 route_t* create_route(rimeaddr_t addr, rimeaddr_t nexthop);
 
 void insert_route(rimeaddr_t addr, rimeaddr_t nexthop);

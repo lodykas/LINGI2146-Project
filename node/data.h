@@ -51,14 +51,14 @@ void data_open();
 void data_close();
 
 /**
- * Method automatically called when an up data message is received
+ * Function automatically called when an up data message is received
  */
 void recv_up(struct unicast_conn *c, const rimeaddr_t *from);
 
 static const struct unicast_callbacks sensor_up_callbacks = {recv_up};
 
 /**
- * Method automatically called by the down timer, send a message from the queue
+ * Function automatically called by the down timer, send a message from the queue
  * to the parent.
  */
 void send_up(void* ptr);
@@ -76,14 +76,14 @@ void ack_up(uint8_t seqnum, uint8_t msg, rimeaddr_t addr);
 /* ------------------------------------------------------------------------- */
 
 /**
- * Method automatically called when a down data message is received
+ * Function automatically called when a down data message is received
  */
 void recv_down(struct unicast_conn *c, const rimeaddr_t *from);
 
 static const struct unicast_callbacks sensor_down_callbacks = {recv_down};
 
 /**
- * Method automatically called by the up timer, send a message from the queue
+ * Function automatically called by the up timer, send a message from the queue
  * to the corresponding child.
  */
 void send_down(void* ptr);
