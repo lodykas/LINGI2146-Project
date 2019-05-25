@@ -10,12 +10,11 @@
 #define ROUTE_ACK 2
 #define ROUTE_WITHDRAW 3
 
-#define KEEP_ALIVE_D_MIN 10
-#define KEEP_ALIVE_D_MAX 15
-#define ONLINE_D_MIN 30
-#define ONLINE_D_MAX 45
-#define ROUTE_D_MIN 7
-#define ROUTE_D_MAX 9
+#define KEEP_ALIVE_D_MIN 15
+#define KEEP_ALIVE_D_MAX 20
+#define ONLINE_D 60 * CLOCK_SECOND
+#define ROUTE_D_MIN 10
+#define ROUTE_D_MAX 15
 
 /**
  * Open the maintenance unicast connection an initiate the timers related

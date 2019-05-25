@@ -9,12 +9,12 @@
 #define WELCOME 1
 #define ROOT_CHECK 2
 
-#define HELLO_D_MIN 3
-#define HELLO_D_MAX 6
+#define HELLO_D_MIN 5
+#define HELLO_D_MAX 7
 #define WELCOME_D_MIN 2
-#define WELCOME_D_MAX 3
-#define ROOT_CHECK_D_MIN 3
-#define ROOT_CHECK_D_MAX 5
+#define WELCOME_D_MAX 4
+#define ROOT_CHECK_D_MIN 2
+#define ROOT_CHECK_D_MAX 4
 
 /**
  * Open the discovery broadcast channel an initialize the timers related
