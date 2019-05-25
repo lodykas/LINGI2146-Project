@@ -11,9 +11,10 @@ broker = "127.0.0.1"
 port = 1234
 serialDevice = "/dev/pts/21"
 channel_prefix = "ME_34_DATA"
-topic_pattern = re.compile("/[\d,.]+|#/[\w]+|#")
-
 measures = Set(["humidity", "temperature"])
+
+
+topic_pattern = re.compile("/[\d,.]+|#/[\w]+|#")
 nodes = Set()
 nodes_lock = threading.Lock() 
 
