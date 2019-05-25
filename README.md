@@ -23,10 +23,15 @@ This will generate 2 executable files, which you will need to burn into your emb
 Note: the gateway softare uses the serialdump tool of Contiki, make sure you are able to run this tool to ensure the correctness of the gateway software.
 
 You can specify inside the gateway.py file the various parameters of the network : 
+
 broker : the ip address of the mqtt broker server
+
 port : port used by said server
+
 serialDevice = path to the file descriptor of the serial device, i.e. the root
+
 channel_prefix = topic name of sensor data in mqtt
+
 measures = Set of measures produced by your sensor network
 
 run
