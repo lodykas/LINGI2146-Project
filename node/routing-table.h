@@ -38,3 +38,7 @@ rimeaddr_t next_route();
 void reset_routes();
 
 void flush_table();
+
+int table_size();
+
+char* table_to_string();

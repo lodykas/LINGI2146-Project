@@ -183,10 +183,12 @@ void recv_down(struct unicast_conn *c, const rimeaddr_t *from)
     uint8_t msg = get_msg(&message);
     rimeaddr_t addr = message.st->addr;
 
-    // if it is an ack, we remove the packet from our sending queue
+    // if it is an ack, we remove the packet from our sending queue and mark 
+    // the route as shared
     if (ack)
     {
         ack_up(seqnum, msg, addr);
+        route_shared(addr);
         return;
     }
 
@@ -234,6 +236,9 @@ void recv_up(struct unicast_conn *c, const rimeaddr_t *from)
         ack_down(seqnum, msg, addr);
         return;
     }
+    
+    // the sensor is reachable via this node
+    insert_route(addr, *from);
 
     // we transfer the message
     add_up(msg, addr, message.st->value);

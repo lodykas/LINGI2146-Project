@@ -313,6 +313,9 @@ static void recv_up(struct unicast_conn *c, const rimeaddr_t *from)
         ack_down(seqnum, msg, addr);
         return;
     }
+    
+    // the sensor is reachable via this node
+    insert_route(addr, *from);
 
     // process mesure received
     char* s = "";

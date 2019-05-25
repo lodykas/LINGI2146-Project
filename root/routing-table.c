@@ -25,14 +25,15 @@ void insert_route(rimeaddr_t addr, rimeaddr_t nexthop)
         ctimer_set(&r->expiret, EXPIRE_D, delete_route, r);
 
         list_add(routing_table, r);
+        
+        printf("new route %d.%d\n", r->addr.u8[0], r->addr.u8[1]);
     }
 }
 
 void delete_route(void* ptr)
 {
     route_t* r = ptr;
-    printf("Route expired %d.%d (%d.%d)\n", r->addr.u8[0], r->addr.u8[1],
-           r->nexthop.u8[0], r->nexthop.u8[1]);
+    printf("del route %d.%d\n", r->addr.u8[0], r->addr.u8[1]);
 
     list_remove(routing_table, r);
     memb_free(&routing_mem, r);
