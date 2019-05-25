@@ -48,7 +48,7 @@
  *
  */
 #define WELCOME_D 1
-#define ROOT_CHECK_D 60
+#define ROOT_CHECK_D 90
 #define DATA_D 2
 
 /*---------------------------------------------------------------------------*/

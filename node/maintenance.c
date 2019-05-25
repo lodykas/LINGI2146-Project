@@ -9,7 +9,7 @@ void open_maintenance()
     unicast_open(&maintenance_unicast, 140, &maintenance_callback);
 
     ctimer_set(&keep_alivet, delay(KEEP_ALIVE_D_MIN, KEEP_ALIVE_D_MAX), send_keep_alive, &keep_alivet);
-    ctimer_set(&onlinet, delay(ONLINE_D_MIN, ONLINE_D_MAX), disconnect, &onlinet);
+    ctimer_set(&onlinet, ONLINE_D, disconnect, &onlinet);
     ctimer_set(&routet, delay(ROUTE_D_MIN, ROUTE_D_MAX), send_route, &routet);
 
     ctimer_stop(&keep_alivet);

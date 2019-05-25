@@ -9,8 +9,8 @@
 
 #define MAX_ROUTES 64
 
-#define SHARE_D 600 * CLOCK_SECOND
-#define EXPIRE_D 1800 * CLOCK_SECOND
+#define SHARE_D 60 * CLOCK_SECOND
+#define EXPIRE_D 180 * CLOCK_SECOND
 
 struct route
 {
