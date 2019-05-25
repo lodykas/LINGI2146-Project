@@ -375,12 +375,12 @@ PROCESS_THREAD(node_data, ev, data)
 
     ctimer_set(&downt, DATA_D * CLOCK_SECOND, send_down, NULL);
 
-    char* table = "TABLE";
-    char* route = "ROUTE";
-    char* nodes = "NODES";
-    char* periodic = "DATA-PER";
-    char* onchange = "DATA-ONC";
-    char* never = "DATA-NEV";
+    char* route = "route";
+    char* nodes = "nodes";
+    char* d = "data";
+    char* periodic = "per";
+    char* onchange = "onc";
+    char* never = "nev";
 
     while(1)
     {
@@ -392,9 +392,20 @@ PROCESS_THREAD(node_data, ev, data)
 
             char* s = (char*) data;
 
-            if (strncmp(s, table, 5) == 0)
+            if (strncmp(s, d, 4) == 0)
             {
-                printf("Routing table contains %d entries\n", table_size());
+                rimeaddr_t addr = readaddr(s, 9);
+                
+                if (strncmp(s + 5, periodic, 3) == 0) {
+                    printf("[DATA] %d.%d will send periodically\n", addr.u8[0], addr.u8[1]);
+                    add_down(PERIODIC_SEND, addr);
+                } else if (strncmp(s + 5, onchange, 3) == 0) {
+                    printf("[DATA] %d.%d will send on change\n", addr.u8[0], addr.u8[1]);
+                    add_down(ON_CHANGE_SEND, addr);
+                } else if (strncmp(s + 5, never, 3) == 0) {
+                    printf("[DATA] %d.%d will never send\n", addr.u8[0], addr.u8[1]);
+                    add_down(DONT_SEND, addr);
+                }
             }
             else if (strncmp(s, nodes, 5) == 0)
             {
@@ -406,30 +417,18 @@ PROCESS_THREAD(node_data, ev, data)
                 rimeaddr_t addr = readaddr(s, 6);
                 route_t* r = search_route(addr);
                 if (r != NULL)
-                    printf("Nexthop toward %d.%d is %d.%d\n", addr.u8[0], addr.u8[1], r->nexthop.u8[0], r->nexthop.u8[1]);
+                    printf("[ROUTE] Nexthop toward %d.%d is %d.%d\n", addr.u8[0], addr.u8[1], r->nexthop.u8[0], r->nexthop.u8[1]);
                 else
-                    printf("No route to %d.%d\n", addr.u8[0], addr.u8[1]);
-            }
-            else if (strncmp(s, never, 8) == 0)
-            {
-                rimeaddr_t addr = readaddr(s, 9);
-                printf("Who shouldn't send anymore? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-                add_down(DONT_SEND, addr);
-            }
-            else if (strncmp(s, periodic, 8) == 0)
-            {
-                rimeaddr_t addr = readaddr(s, 9);
-                printf("Who should send periodically? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-                add_down(PERIODIC_SEND, addr);
-            }
-            else if (strncmp(s, onchange, 8) == 0)
-            {
-                rimeaddr_t addr = readaddr(s, 9);
-                printf("Who should send on change? -> %d.%d\n", addr.u8[0], addr.u8[1]);
-                add_down(ON_CHANGE_SEND, addr);
+                    printf("[ROUTE] No route to %d.%d\n", addr.u8[0], addr.u8[1]);
             }
             else
-                printf("Unknown message received on stdin : '%s'\n", s);
+                printf("[OOOPS] Unknown message received on stdin : '%s'\n\n%s%s%s%s%s", 
+                    s, 
+                    "Allowed commands are :\n",
+                    " - route [node] (ex: route 5.0)\n", 
+                    " - nodes\n",
+                    " - data [param] [node] (ex: data nev 5.0)\n",
+                    "\twith params : \n\t * per (for periodically), \n\t * onc (for on change), \n\t * nev (for never)\n");
         }
 
     }
